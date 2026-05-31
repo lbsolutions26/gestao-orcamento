@@ -525,6 +525,31 @@ body {
     left: 0;
 }
 
+/* Menu fixo na esquerda em desktop */
+@media (min-width: 1024px) {
+    .sidebar {
+        left: 0;
+        box-shadow: none;
+        border-right: 1px solid var(--gray-200);
+    }
+    
+    .sidebar-header {
+        display: none;
+    }
+    
+    .sidebar-overlay {
+        display: none;
+    }
+    
+    .main-content {
+        margin-left: 300px;
+    }
+    
+    .header {
+        margin-left: 300px;
+    }
+}
+
 .sidebar-header {
     display: flex;
     justify-content: space-between;
