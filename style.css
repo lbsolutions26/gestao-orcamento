@@ -535,7 +535,11 @@ body {
     }
     
     .sidebar-header {
-        display: none;
+        display: none !important;
+    }
+    
+    .sidebar-close {
+        display: none !important;
     }
     
     .sidebar-overlay {
@@ -552,7 +556,7 @@ body {
     }
     
     .menu-toggle {
-        display: none;
+        display: none !important;
     }
 }
 
