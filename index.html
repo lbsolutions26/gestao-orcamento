@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Gerencie seu orçamento pessoal de forma fácil e rápida">
+    <title>Gestão de Orçamento</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Orçamento">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader"></div>
+        <p>Carregando...</p>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen hidden">
+        <div class="login-container">
+            <div class="logo">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="80" height="80" rx="16" fill="#6366f1"/>
+                    <path d="M25 40L35 50L55 30" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="40" cy="40" r="22" stroke="white" stroke-width="4"/>
+                </svg>
+            </div>
+            <h1>Gestão de Orçamento</h1>
+            <p class="subtitle">Controle suas finanças com facilidade</p>
+            
+            <div id="auth-tabs" class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Entrar</button>
+                <button class="tab-btn" data-tab="register">Cadastrar</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-email">E-mail</label>
+                    <input type="email" id="login-email" required placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Senha</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary">Entrar</button>
+                <p class="error-message" id="login-error"></p>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden">
+                <div class="form-group">
+                    <label for="register-name">Nome</label>
+                    <input type="text" id="register-name" required placeholder="Seu nome">
+                </div>
+                <div class="form-group">
+                    <label for="register-email">E-mail</label>
+                    <input type="email" id="register-email" required placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Senha</label>
+                    <input type="password" id="register-password" required placeholder="••••••••" minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">Criar Conta</button>
+                <p class="error-message" id="register-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-screen" class="screen hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button id="menu-toggle" class="menu-toggle" title="Menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h1 class="header-title">💰 Orçamento</h1>
+                    <div class="header-filters">
+                        <select id="filter-month" class="filter-select-compact">
+                            <option value="">Todos os meses</option>
+                            <option value="01">Jan</option>
+                            <option value="02">Fev</option>
+                            <option value="03">Mar</option>
+                            <option value="04">Abr</option>
+                            <option value="05">Mai</option>
+                            <option value="06">Jun</option>
+                            <option value="07">Jul</option>
+                            <option value="08">Ago</option>
+                            <option value="09">Set</option>
+                            <option value="10">Out</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dez</option>
+                        </select>
+                        <select id="filter-year" class="filter-select-compact">
+                            <option value="">Todos os anos</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a href="diario.html" class="icon-btn" title="Diário (uso rápido)" style="text-decoration: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                    </a>
+                    <a href="pagamentos.html" class="icon-btn" title="Gestão de Pagamentos" style="text-decoration: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                    </a>
+                    <button id="install-btn" class="icon-btn" title="Instalar App" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <button id="profile-btn" class="icon-btn" title="Meu Cadastro" onclick="navigateToScreen('cadastro')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </button>
+                    <button id="logout-btn" class="icon-btn" title="Sair">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MENU LATERAL -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2>Menu</h2>
+                <button id="sidebar-close" class="sidebar-close">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <ul class="sidebar-menu">
+                <li>
+                    <button class="menu-item active" data-screen="dashboard">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        <span>Dashboard</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="menu-item" data-screen="graficos">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="20" x2="12" y2="10"></line>
+                            <line x1="18" y1="20" x2="18" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="16"></line>
+                        </svg>
+                        <span>Gráficos</span>
+                    </button>
+                </li>
+                <li>
+                    <a href="diario.html" class="menu-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                        <span>Diário</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="pagamentos.html" class="menu-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                        <span>Pagamentos</span>
+                    </a>
+                </li>
+                <li>
+                    <button class="menu-item" data-screen="familia">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Família</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="menu-item" data-screen="cadastro">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Meu Cadastro</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="menu-item" data-screen="gestor-financeiro">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 16v.01"></path>
+                            <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"></path>
+                        </svg>
+                        <span>Gestor Financeiro</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- TELA DASHBOARD -->
+        <div id="dashboard" class="screen active">
+        <!-- Balance Cards -->
+        <div class="balance-section">
+            <div class="balance-grid-compact">
+                <div class="balance-card-compact balance-total">
+                    <p class="balance-label-compact">Saldo Atual</p>
+                    <p class="balance-value-compact" id="balance-total">R$ 0,00</p>
+                </div>
+                <div class="balance-card-compact balance-income clickable-card" id="card-income" data-type="income">
+                    <p class="balance-label-compact">📈 Receitas</p>
+                    <p class="balance-value-compact" id="balance-income">R$ 0,00</p>
+                </div>
+                <div class="balance-card-compact balance-expense clickable-card" id="card-expense" data-type="expense">
+                    <p class="balance-label-compact">📉 Despesas</p>
+                    <p class="balance-value-compact" id="balance-expense">R$ 0,00</p>
+                </div>
+                <div class="balance-card-compact balance-pending clickable-card" id="card-pending" data-type="pending">
+                    <p class="balance-label-compact">⏳ Pendentes</p>
+                    <p class="balance-value-compact" id="balance-pending">R$ 0,00</p>
+                    <p class="balance-count-compact" id="pending-count">0</p>
+                </div>
+                <div class="balance-card-compact balance-overdue clickable-card" id="card-overdue" data-type="overdue">
+                    <p class="balance-label-compact">⚠️ Atrasadas</p>
+                    <p class="balance-value-compact" id="balance-overdue">R$ 0,00</p>
+                    <p class="balance-count-compact" id="overdue-count">0</p>
+                </div>
+                <div class="balance-card-compact balance-credit clickable-card" id="card-credit" data-type="credit">
+                    <p class="balance-label-compact">💳 Cartão</p>
+                    <p class="balance-value-compact" id="balance-credit">R$ 0,00</p>
+                    <p class="balance-count-compact" id="credit-count">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="add-income-btn" class="btn btn-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Receita
+            </button>
+            <button id="add-expense-btn" class="btn btn-danger">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Despesa
+            </button>
+        </div>
+
+        <!-- Transactions List -->
+        <div class="transactions-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="margin: 0;">Transações Recentes</h2>
+                <input type="text" id="search-input" class="search-input" placeholder="🔍 Pesquisar...">
+            </div>
+            <div id="transactions-list" class="transactions-list">
+                <div class="empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                    </svg>
+                    <p>Nenhuma transação ainda</p>
+                    <p class="empty-subtitle">Adicione sua primeira receita ou despesa</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- FIM TELA DASHBOARD -->
+
+    <!-- TELA DE GRÁFICOS -->
+    <div id="graficos" class="screen">
+        <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
+
+            <!-- Título + Filtros -->
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;">
+                <h2 style="font-size:1.1rem; color:#374151; margin:0;">Análise Gráfica</h2>
+                <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+                    <select id="chart-filter-year" style="padding:.4rem .7rem; border-radius:8px; border:1px solid #e5e7eb; font-size:.85rem;">
+                        <option value="all">Todos os anos</option>
+                    </select>
+                    <select id="chart-filter-month" style="padding:.4rem .7rem; border-radius:8px; border:1px solid #e5e7eb; font-size:.85rem;">
+                        <option value="all">Todos os meses</option>
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                    <button onclick="renderCharts()" style="padding:.4rem 1rem; background:#6366f1; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:.85rem;">Atualizar</button>
+                </div>
+            </div>
+
+            <!-- Gráfico 1: Receitas x Despesas por mês -->
+            <div class="chart-card">
+                <h3 style="margin-bottom:.75rem; font-size:1rem; color:#374151;">📊 Receitas x Despesas por Mês</h3>
+                <div style="position:relative; height:260px;">
+                    <canvas id="chart-receitas-despesas"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico 2: Despesas por Categoria -->
+            <div class="chart-card">
+                <h3 style="margin-bottom:.75rem; font-size:1rem; color:#374151;">🥧 Despesas por Categoria</h3>
+                <div style="position:relative; height:260px;">
+                    <canvas id="chart-categorias"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico 3: Evolução do Saldo -->
+            <div class="chart-card">
+                <h3 style="margin-bottom:.75rem; font-size:1rem; color:#374151;">📈 Evolução do Saldo Acumulado</h3>
+                <div style="position:relative; height:260px;">
+                    <canvas id="chart-saldo"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <!-- FIM TELA GRÁFICOS -->
+
+    <!-- TELA DE FAMÍLIA -->
+    <div id="familia" class="screen" style="padding-top: 0;">
+        <div class="screen-header" style="padding-top: 1rem;">
+            <h2>👨‍👩‍👧‍👦 Minha Família</h2>
+            <p class="screen-subtitle">Gerencie quem pode acessar e editar seu orçamento</p>
+        </div>
+        
+        <div class="family-container" style="max-width: 800px; margin: 0 auto; padding: 0 var(--spacing-md) var(--spacing-md);">
+            
+            <!-- Nome da Família -->
+            <div class="family-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.125rem; margin: 0 0 1rem 0;">Nome da Família</h3>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <input type="text" id="family-name" placeholder="Minha Família" style="flex: 1; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 1rem;">
+                    <button id="save-family-name" class="btn btn-primary" style="white-space: nowrap;">Salvar</button>
+                </div>
+            </div>
+
+            <!-- Membros da Família -->
+            <div class="family-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.125rem; margin: 0 0 1rem 0;">Membros</h3>
+                <div id="family-members-list">
+                    <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                        <p>Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Convidar Membro -->
+            <div class="family-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.125rem; margin: 0 0 1rem 0;">Convidar Alguém</h3>
+                <p style="color: var(--gray-600); font-size: 0.875rem; margin-bottom: 1rem;">Envie um convite por email para alguém gerenciar o orçamento com você</p>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <input type="email" id="invite-email" placeholder="email@exemplo.com" style="flex: 1; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 1rem;">
+                    <button id="send-invite" class="btn btn-primary" style="white-space: nowrap;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle;">
+                            <path d="M22 2L11 13"></path>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                        </svg>
+                        Enviar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Convites Pendentes -->
+            <div class="family-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h3 style="font-size: 1.125rem; margin: 0 0 1rem 0;">Convites Pendentes</h3>
+                <div id="pending-invitations-list">
+                    <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                        <p>Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <!-- FIM TELA FAMÍLIA -->
+
+    <!-- TELA GESTOR FINANCEIRO -->
+    <div id="gestor-financeiro" class="screen" style="padding-top: 0;">
+        <div class="screen-header" style="padding-top: 1rem;">
+            <h2>🤖 Gestor Financeiro</h2>
+            <p class="screen-subtitle">Faça perguntas sobre seus dados e receba análises automáticas</p>
+            <button id="config-ai-token-btn" class="btn btn-secondary" style="margin-top: 0.5rem;">
+                ⚙️ Configurar Token IA
+            </button>
+        </div>
+
+        <div class="ai-manager-container">
+            <div class="ai-insights-card">
+                <h3>Perguntas rápidas</h3>
+                <div class="ai-suggestions" id="financial-suggestions">
+                    <button class="ai-suggestion-btn" data-question="Quais são os próximos vencimentos para a semana que vem?">Próximos vencimentos da semana que vem</button>
+                    <button class="ai-suggestion-btn" data-question="Nos últimos meses, qual categoria de gasto está aumentando?">Categoria de gasto em alta</button>
+                    <button class="ai-suggestion-btn" data-question="Me dê um resumo financeiro do mês atual">Resumo financeiro do mês atual</button>
+                </div>
+            </div>
+
+            <div class="ai-chat-card">
+                <div id="financial-chat-messages" class="ai-chat-messages">
+                    <div class="ai-message ai-message-assistant">
+                        Olá! Eu sou seu gestor financeiro inteligente. Posso analisar seus lançamentos e responder perguntas como:
+                        <br><br>
+                        • Quais vencimentos estão chegando?
+                        <br>
+                        • Qual categoria está subindo mais?
+                        <br>
+                        • Como está o mês atual?
+                    </div>
+                </div>
+
+                <form id="financial-question-form" class="ai-question-form">
+                    <input
+                        type="text"
+                        id="financial-question-input"
+                        class="ai-question-input"
+                        placeholder="Ex: Quais contas vencem na próxima semana?"
+                        required
+                    >
+                    <button type="submit" class="btn btn-primary">Perguntar</button>
+                    <button type="button" id="financial-clear-chat" class="btn btn-secondary">Limpar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- FIM TELA GESTOR FINANCEIRO -->
+
+    <!-- TELA DE CADASTRO DO USUÁRIO -->
+    <div id="cadastro" class="screen" style="padding-top: 0;">
+        <div class="screen-header" style="padding-top: 1rem;">
+            <h2>👤 Meu Cadastro</h2>
+            <p class="screen-subtitle">Gerencie seus dados pessoais e notificações</p>
+        </div>
+        <div style="max-width: 480px; margin: 0 auto; padding: 0 var(--spacing-md) var(--spacing-md);">
+            <form id="user-profile-form" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="form-group">
+                    <label for="user-email">E-mail</label>
+                    <input type="email" id="user-email" disabled style="background: var(--gray-100);">
+                </div>
+                <div class="form-group">
+                    <label for="user-telegram-id">📲 Telegram ID (chat_id)</label>
+                    <input type="text" id="user-telegram-id" placeholder="Ex: 123456789">
+                    <small style="color: var(--gray-500); display: block; margin-top: 4px;">
+                        Para descobrir seu chat_id: abra o Telegram e envie uma mensagem para <strong>@userinfobot</strong>. Ele vai responder com seu ID.
+                    </small>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">💾 Salvar Dados</button>
+                <p id="user-profile-success" style="color: var(--success); display: none; margin-top: 1rem; text-align: center;">✅ Dados salvos com sucesso!</p>
+                <p id="user-profile-error" style="color: var(--danger); display: none; margin-top: 1rem;"></p>
+            </form>
+        </div>
+    </div>
+    <!-- FIM TELA CADASTRO -->
+
+    <!-- Transaction Modal -->
+    <div id="transaction-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Nova Transação</h2>
+                <button id="close-modal-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="transaction-form">
+                <input type="hidden" id="transaction-type">
+                
+                <div class="form-group">
+                    <label for="transaction-description">Descrição</label>
+                    <input type="text" id="transaction-description" required placeholder="Ex: Salário, Aluguel, Mercado">
+                </div>
+                
+                <div class="form-group">
+                    <label for="transaction-supplier">Fornecedor/Cliente (opcional)</label>
+                    <input type="text" id="transaction-supplier" placeholder="Ex: Supermercado ABC, Cliente XYZ">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transaction-amount">Valor (R$)</label>
+                        <input type="number" id="transaction-amount" required step="0.01" min="0" placeholder="0,00">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transaction-category">Categoria</label>
+                        <select id="transaction-category" required>
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transaction-date">Data Lançamento</label>
+                        <input type="date" id="transaction-date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transaction-due-date">Data Vencimento</label>
+                        <input type="date" id="transaction-due-date">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transaction-payment-method">Forma de Pagamento</label>
+                    <select id="transaction-payment-method" required>
+                        <option value="Conta Corrente">Conta Corrente</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Transferência">Transferência</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transaction-status">Status</label>
+                    <select id="transaction-status" required>
+                        <option value="pending">⏳ Pendente</option>
+                        <option value="paid">✅ Paga</option>
+                    </select>
+                </div>
+                
+                <div id="credit-card-fields" class="form-group" style="display: none;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="transaction-affects-balance" style="margin-right: 8px; width: 18px; height: 18px;">
+                        <span>💳 É compra no cartão (não pagamento de fatura)</span>
+                    </label>
+                    <small style="color: var(--gray-500); margin-top: 4px; display: block;">
+                        Marque se for uma compra parcelada ou que será paga depois na fatura
+                    </small>
+                    
+                    <div id="bill-reference-field" style="margin-top: 12px; display: none;">
+                        <label for="transaction-bill-reference">Referência da Fatura (mês/ano)</label>
+                        <input type="text" id="transaction-bill-reference" placeholder="Ex: 2025-08">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transaction-notes">Observações (opcional)</label>
+                    <textarea id="transaction-notes" rows="2" placeholder="Detalhes adicionais..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transaction-attachment">📎 Anexar Boleto/Fatura (opcional)</label>
+                    <input type="file" id="transaction-attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-bottom: 8px;">
+                    <small style="color: var(--gray-500); display: block;">Formatos aceitos: PDF, JPG, PNG, WEBP (máx. 5MB)</small>
+                    <div id="current-attachment" style="display: none; margin-top: 8px; padding: 8px; background: var(--gray-50); border-radius: 8px;">
+                        <span id="current-attachment-name" style="color: var(--gray-700);"></span>
+                        <button type="button" id="remove-attachment" class="btn" style="margin-left: 8px; padding: 4px 8px; font-size: 12px;">❌ Remover</button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Card Details Modal -->
+    <div id="card-details-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="card-details-title">Detalhes</h2>
+                <button class="icon-btn" id="close-details-modal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <div id="card-details-list"></div>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- FIM APP-SCREEN -->
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "gestao-orcamento-pwa",
+  "version": "1.0.0",
+  "description": "PWA de Gestão de Orçamento Pessoal com Supabase",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -l 8000",
+    "dev": "npx serve -l 8000",
+    "deploy": "vercel",
+    "preview": "python -m http.server 8000"
+  },
+  "keywords": [
+    "pwa",
+    "budget",
+    "finance",
+    "supabase",
+    "orcamento"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
+  }
+}

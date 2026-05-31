@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/send-telegram-notifications",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/send-telegram-notifications",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/send-telegram-notifications",
+      "schedule": "0 23 * * *"
+    }
+  ]
+}
+

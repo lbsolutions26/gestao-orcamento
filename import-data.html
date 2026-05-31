@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importar Dados - Gestão de Orçamento</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #6366f1;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .warning {
+            color: #f59e0b;
+        }
+        .info {
+            color: #3b82f6;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #6366f1;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📥 Importar Dados da Planilha</h1>
+        <p class="subtitle">Importa os dados do CSV para o Supabase</p>
+
+        <div class="stats" id="stats" style="display:none;">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-success">0</div>
+                <div class="stat-label">Importadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-error">0</div>
+                <div class="stat-label">Erros</div>
+            </div>
+        </div>
+
+        <div>
+            <button id="login-btn" onclick="login()">1. Fazer Login</button>
+            <input type="file" id="csv-file" accept=".csv" style="display:none;" onchange="handleFileSelect(event)">
+            <button id="select-file-btn" onclick="document.getElementById('csv-file').click()" disabled>2. Selecionar CSV</button>
+            <button id="import-btn" onclick="importData()" disabled>3. Importar Dados</button>
+            <button id="clear-btn" onclick="clearLog()">Limpar Log</button>
+        </div>
+
+        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="clear-old-data" style="margin-right: 10px; width: 18px; height: 18px;">
+                <span style="font-weight: 600;">⚠️ Limpar dados antigos antes de importar</span>
+            </label>
+            <p style="margin: 8px 0 0 28px; font-size: 13px; color: #666;">
+                Marque esta opção para deletar todas as transações existentes antes da importação.
+                <strong>Esta ação não pode ser desfeita!</strong>
+            </p>
+        </div>
+
+        <div id="file-info" style="display:none; margin: 20px 0; padding: 15px; background: #e0f2fe; border-radius: 8px; border-left: 4px solid #0ea5e9;">
+            <strong>📄 Arquivo selecionado:</strong>
+            <div id="file-name" style="margin-top: 5px; color: #0369a1;"></div>
+            <div id="file-preview" style="margin-top: 10px; font-size: 13px; color: #666;"></div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://uftjltanaiqvdatekroc.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_GoZlDUtla1khO1uUnQ3nRA_z6u1f-Xa';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let stats = { total: 0, success: 0, error: 0 };
+        let parsedTransactions = [];
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const className = type;
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('stats').style.display = 'grid';
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-success').textContent = stats.success;
+            document.getElementById('stat-error').textContent = stats.error;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            log(`📄 Arquivo selecionado: ${file.name}`, 'info');
+            document.getElementById('file-name').textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            document.getElementById('file-info').style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csvContent = e.target.result;
+                    parsedTransactions = parseCSV(csvContent);
+                    
+                    if (parsedTransactions.length === 0) {
+                        log('❌ Nenhuma transação válida encontrada no CSV', 'error');
+                        document.getElementById('import-btn').disabled = true;
+                        return;
+                    }
+
+                    log(`✅ ${parsedTransactions.length} transações encontradas no CSV`, 'success');
+                    document.getElementById('file-preview').innerHTML = `
+                        <strong>Preview das primeiras transações:</strong><br>
+                        ${parsedTransactions.slice(0, 3).map(t => 
+                            `• ${t.date} - ${t.description} - R$ ${t.amount.toFixed(2)} (${t.type === 'income' ? 'Receita' : 'Despesa'})`
+                        ).join('<br>')}
+                        ${parsedTransactions.length > 3 ? '<br>...' : ''}
+                    `;
+                    document.getElementById('import-btn').disabled = false;
+                } catch (error) {
+                    log(`❌ Erro ao processar CSV: ${error.message}`, 'error');
+                    document.getElementById('import-btn').disabled = true;
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function parseCSV(csvContent) {
+            const lines = csvContent.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                throw new Error('CSV vazio ou sem dados');
+            }
+
+            const transactions = [];
+            
+            // Detectar delimitador (vírgula ou ponto-e-vírgula)
+            const delimiter = detectDelimiter(lines[0]);
+            log(`🔍 Delimitador detectado: "${delimiter}"`, 'info');
+            
+            // Ler cabeçalho para identificar colunas
+            const headerLine = parseCSVLine(lines[0], delimiter);
+            const columnMap = identifyColumns(headerLine);
+            
+            log(`📋 Colunas identificadas: ${Object.keys(columnMap).length}`, 'info');
+            
+            // Log das colunas encontradas para debug
+            if (Object.keys(columnMap).length > 0) {
+                const cols = Object.entries(columnMap)
+                    .map(([key, idx]) => `${key}(${idx})`)
+                    .join(', ');
+                log(`   Mapeamento: ${cols}`, 'info');
+            } else {
+                log('⚠️ Nenhuma coluna reconhecida! Verifique o cabeçalho do CSV', 'warning');
+            }
+            
+            // Processar linhas de dados
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const values = parseCSVLine(line, delimiter);
+                if (values.length < 3) continue;
+
+                try {
+                    const transaction = parseTransaction(values, columnMap, i + 1);
+                    if (transaction) {
+                        transactions.push(transaction);
+                    }
+                } catch (error) {
+                    log(`⚠️ Linha ${i + 1} ignorada: ${error.message}`, 'warning');
+                }
+            }
+
+            if (transactions.length === 0) {
+                log('⚠️ Nenhuma transação válida encontrada', 'warning');
+                log('   Verifique se as colunas obrigatórias estão presentes: Descrição, Valor', 'info');
+            } else {
+                log(`✅ ${transactions.length} transações válidas encontradas`, 'success');
+            }
+
+            return transactions;
+        }
+
+        function identifyColumns(headerLine) {
+            const map = {};
+            
+            headerLine.forEach((col, index) => {
+                const colLower = col.toLowerCase().trim();
+                
+                // Mapeamento das colunas
+                if (colLower.includes('categoria')) map.category = index;
+                else if (colLower.includes('descri')) map.description = index;
+                else if (colLower.includes('vencimento')) map.due_date = index;
+                else if (colLower.includes('valor')) map.amount = index;
+                else if (colLower.includes('situa') || colLower.includes('status')) map.status = index;
+                else if (colLower.includes('pagamento') && !colLower.includes('forma')) map.payment_date = index;
+                else if (colLower.includes('forma')) map.payment_method = index;
+                else if (colLower.includes('tipo')) map.type = index;
+                else if (colLower.includes('observa') || colLower.includes('nota')) map.notes = index;
+                else if (colLower.includes('data') && !colLower.includes('vencimento') && !colLower.includes('pagamento')) map.date = index;
+            });
+            
+            return map;
+        }
+
+        function parseTransaction(values, columnMap, lineNumber) {
+            // Campos obrigatórios
+            const description = values[columnMap.description]?.trim();
+            const amountStr = values[columnMap.amount]?.trim();
+            
+            if (!description || !amountStr) {
+                return null; // Linha vazia ou incompleta
+            }
+
+            // Processar valor
+            const amount = parseValue(amountStr);
+            if (isNaN(amount) || amount === 0) {
+                return null;
+            }
+
+            // Processar tipo (Saída/Entrada ou Despesa/Receita)
+            let type = 'expense'; // Padrão
+            if (columnMap.type !== undefined) {
+                const typeStr = values[columnMap.type]?.toLowerCase() || '';
+                if (typeStr.includes('entrada') || typeStr.includes('receita')) {
+                    type = 'income';
+                }
+            }
+
+            // Categoria
+            const category = values[columnMap.category]?.trim() || 
+                           (type === 'income' ? 'Outros' : 'Despesas');
+
+            // Datas
+            const dueDate = columnMap.due_date !== undefined ? 
+                           parseDate(values[columnMap.due_date]) : null;
+            
+            const paymentDateStr = columnMap.payment_date !== undefined ? 
+                                  values[columnMap.payment_date]?.trim() : null;
+            const paymentDate = paymentDateStr ? parseDate(paymentDateStr) : null;
+
+            // Data de lançamento (usa vencimento se não tiver data específica)
+            const date = columnMap.date !== undefined ? 
+                        parseDate(values[columnMap.date]) : 
+                        (dueDate || new Date().toISOString().split('T')[0]);
+
+            // Status (PAGO/Pendente)
+            let status = 'pending';
+            if (columnMap.status !== undefined) {
+                const statusStr = values[columnMap.status]?.toLowerCase() || '';
+                if (statusStr.includes('pago') || statusStr.includes('paid')) {
+                    status = 'paid';
+                }
+            }
+
+            // Forma de pagamento
+            let paymentMethod = 'Conta Corrente'; // Padrão
+            if (columnMap.payment_method !== undefined) {
+                const methodStr = values[columnMap.payment_method]?.trim();
+                if (methodStr) {
+                    paymentMethod = methodStr;
+                }
+            }
+
+            // Observações
+            const notes = columnMap.notes !== undefined ? 
+                         values[columnMap.notes]?.trim() : null;
+
+            // Determinar se afeta o saldo
+            // Compras no cartão de crédito geralmente NÃO afetam (exceto pagamento de fatura)
+            let affects_balance = true;
+            let is_bill_payment = false;
+            let bill_reference = null;
+
+            const isCredit = paymentMethod.toLowerCase().includes('cartão') || 
+                           paymentMethod.toLowerCase().includes('credito');
+            
+            if (isCredit && type === 'expense') {
+                // Se é cartão e tem observação de "pagamento" ou "fatura", afeta saldo
+                const descLower = description.toLowerCase();
+                const notesLower = (notes || '').toLowerCase();
+                
+                if (descLower.includes('pagamento') || descLower.includes('fatura') ||
+                    notesLower.includes('pagamento') || notesLower.includes('fatura')) {
+                    affects_balance = true;
+                    is_bill_payment = true;
+                } else {
+                    // É compra no cartão, não afeta saldo imediatamente
+                    affects_balance = false;
+                    
+                    // Gerar referência da fatura baseada na data
+                    if (dueDate) {
+                        const d = new Date(dueDate + 'T00:00:00');
+                        bill_reference = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            return {
+                type: type,
+                description: description,
+                amount: Math.abs(amount),
+                category: category,
+                date: date,
+                due_date: dueDate || date,
+                payment_date: status === 'paid' ? (paymentDate || date) : null,
+                payment_method: paymentMethod,
+                status: status,
+                affects_balance: affects_balance,
+                is_bill_payment: is_bill_payment,
+                bill_reference: bill_reference,
+                notes: notes
+            };
+        }
+
+        function detectDelimiter(line) {
+            // Conta ocorrências de vírgula e ponto-e-vírgula fora de aspas
+            let commaCount = 0;
+            let semicolonCount = 0;
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (!inQuotes) {
+                    if (char === ',') commaCount++;
+                    if (char === ';') semicolonCount++;
+                }
+            }
+
+            // Retorna o delimitador mais comum
+            return semicolonCount > commaCount ? ';' : ',';
+        }
+
+        function parseCSVLine(line, delimiter = ',') {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+
+            return result.map(v => v.replace(/^"|"$/g, '').trim());
+        }
+
+        function parseDate(dateStr) {
+            // Remove espaços e pontos extras
+            dateStr = dateStr.trim().replace(/\./g, '');
+            
+            // Tenta formato DD/MM/YYYY ou DD/MM/YY
+            const match1 = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+            if (match1) {
+                let [, day, month, year] = match1;
+                if (year.length === 2) year = '20' + year;
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+
+            // Tenta formato DD/MMM onde MMM é nome do mês
+            const match2 = dateStr.match(/(\d{1,2})\/(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/i);
+            if (match2) {
+                const [, day, monthName] = match2;
+                const months = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+                const month = months[monthName.toLowerCase()];
+                const currentYear = new Date().getFullYear();
+                return `${currentYear}-${String(month).padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+
+            // Tenta ISO format YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                return dateStr;
+            }
+
+            return null;
+        }
+
+        function parseValue(valueStr) {
+            if (!valueStr) return 0;
+            
+            // Preservar sinal negativo
+            const isNegative = valueStr.includes('-');
+            
+            // Remove espaços, R$, pontos de milhar, sinal negativo
+            valueStr = valueStr.replace(/R\$|\s|-/g, '').trim();
+            
+            // Se tem vírgula, assume formato brasileiro (1.234,56)
+            if (valueStr.includes(',')) {
+                valueStr = valueStr.replace(/\./g, '').replace(',', '.');
+            }
+            
+            const value = parseFloat(valueStr);
+            return isNegative ? -value : value;
+        }
+
+        async function clearOldData() {
+            if (!currentUser) return;
+
+            try {
+                log('🗑️ Limpando dados antigos...', 'info');
+                const { error } = await supabaseClient
+                    .from('transactions')
+                    .delete()
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+
+                log('✅ Dados antigos removidos com sucesso', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ Erro ao limpar dados: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function login() {
+            const email = prompt('E-mail:');
+            const password = prompt('Senha:');
+            
+            if (!email || !password) {
+                log('❌ Login cancelado', 'error');
+                return;
+            }
+
+            try {
+                log('🔐 Fazendo login...', 'info');
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                currentUser = data.user;
+                document.getElementById('select-file-btn').disabled = false;
+                document.getElementById('login-btn').textContent = '1. Login ✓';
+                document.getElementById('login-btn').style.background = '#10b981';
+                log(`✅ Login bem-sucedido! Usuário: ${currentUser.email}`, 'success');
+            } catch (error) {
+                log(`❌ Erro no login: ${error.message}`, 'error');
+            }
+        }
+
+        async function importData() {
+            if (!currentUser) {
+                log('❌ Faça login primeiro!', 'error');
+                return;
+            }
+
+            if (parsedTransactions.length === 0) {
+                log('❌ Selecione um arquivo CSV primeiro!', 'error');
+                return;
+            }
+
+            const clearOld = document.getElementById('clear-old-data').checked;
+            
+            let confirmMsg = `Deseja importar ${parsedTransactions.length} transações?`;
+            if (clearOld) {
+                confirmMsg = `⚠️ ATENÇÃO: Isso irá DELETAR todos os dados existentes e importar ${parsedTransactions.length} novas transações.\n\nTem certeza?`;
+            }
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            document.getElementById('import-btn').disabled = true;
+            document.getElementById('select-file-btn').disabled = true;
+
+            // Limpar dados antigos se solicitado
+            if (clearOld) {
+                const cleared = await clearOldData();
+                if (!cleared) {
+                    document.getElementById('import-btn').disabled = false;
+                    document.getElementById('select-file-btn').disabled = false;
+                    return;
+                }
+            }
+
+            stats = { total: parsedTransactions.length, success: 0, error: 0 };
+            updateStats();
+
+            log(`📥 Iniciando importação de ${parsedTransactions.length} transações...`, 'info');
+
+            for (const transaction of parsedTransactions) {
+                try {
+                    const data = {
+                        user_id: currentUser.id,
+                        type: transaction.type,
+                        description: transaction.description,
+                        amount: transaction.amount,
+                        category: transaction.category,
+                        date: transaction.date,
+                        due_date: transaction.due_date,
+                        payment_date: transaction.payment_date,
+                        payment_method: transaction.payment_method,
+                        affects_balance: transaction.affects_balance,
+                        is_bill_payment: transaction.is_bill_payment,
+                        bill_reference: transaction.bill_reference,
+                        notes: transaction.notes,
+                        status: transaction.status
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('transactions')
+                        .insert([data]);
+
+                    if (error) throw error;
+
+                    stats.success++;
+                    const statusIcon = transaction.status === 'paid' ? '✓' : '⏳';
+                    const creditIcon = transaction.affects_balance === false ? '💳' : '';
+                    log(`✅ ${statusIcon} ${creditIcon} ${transaction.description} - R$ ${transaction.amount.toFixed(2)}`, 'success');
+                } catch (error) {
+                    stats.error++;
+                    log(`❌ Erro: ${transaction.description} - ${error.message}`, 'error');
+                }
+
+                updateStats();
+                await new Promise(resolve => setTimeout(resolve, 50)); // Delay para não sobrecarregar
+            }
+
+            document.getElementById('import-btn').disabled = false;
+            document.getElementById('select-file-btn').disabled = false;
+            
+            log(`\n✅ Importação concluída! ${stats.success}/${stats.total} transações importadas com sucesso.`, 'success');
+            
+            if (stats.error > 0) {
+                log(`⚠️ ${stats.error} transações com erro.`, 'warning');
+            }
+
+            log(`\n📊 Para ver os dados, acesse: http://localhost:8000/pagamentos.html`, 'info');
+        }
+    </script>
+</body>
+</html>

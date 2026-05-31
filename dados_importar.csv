@@ -1,0 +1,379 @@
+﻿Categoria;Descrição;Data Vencimento;Valor;Situação;Data Pagamento;Forma Pagamento;Tipo;Observação
+Moradia;Luz Apto Cachoeirinha;18/08/2025;-R$ 298,87;PAGO;01/10/2025;Conta Corrente;Saída;Energia atrasada de agosto
+Moradia;Condomínio Santa Maria B3 102;05/09/2025;-R$ 411,24;PAGO;01/10/2025;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/01/2026;-R$ 146,14;PAGO;01/01/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;05/12/2025;-R$ 398,89;PAGO;09/12/2025;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/01/2026;-R$ 695,76;PAGO;01/01/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/05/2026;-R$ 2.000,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;Provisao
+Livre;Cartão de Crédito;01/06/2026;-R$ 2.000,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/07/2026;-R$ 2.000,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/08/2026;-R$ 2.000,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/09/2026;-R$ 2.000,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/10/2026;-R$ 2.000,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/11/2026;-R$ 2.000,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Livre;Cartão de Crédito;01/12/2026;-R$ 2.000,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/01/2026;-R$ 1.000,00;PAGO;01/01/2026;Conta Corrente;Saída;
+Salário;Cofelma;01/01/2026;R$ 19.000,00;PAGO;01/01/2026;Conta Corrente;Entrada;
+Viagens;Estadia casa sogra;01/01/2026;-R$ 100,00;PAGO;01/01/2026;Conta Corrente;Saída;
+Pensões;Fernando;01/01/2026;-R$ 800,00;PAGO;01/01/2026;Conta Corrente;Saída;
+Pensões;José;01/01/2026;-R$ 550,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/01/2026;-R$ 379,50;PAGO;;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;01/01/2026;-R$ 388,13;NÃO PAGO;;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;01/01/2026;-R$ 1.324,53;NÃO PAGO;;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;01/01/2026;-R$ 1.219,77;NÃO PAGO;;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;01/09/2026;-R$ 4.000,00;NÃO PAGO;;Conta Corrente;Saída;Provisão
+Impostos;L&B Solutions - Impostos;01/08/2026;-R$ 4.000,00;NÃO PAGO;;Conta Corrente;Saída;Provisão
+Impostos;L&B Solutions - Impostos;01/07/2026;-R$ 4.000,00;NÃO PAGO;;Conta Corrente;Saída;Provisão
+Impostos;L&B Solutions - Impostos;01/06/2026;-R$ 4.000,00;NÃO PAGO;;Conta Corrente;Saída;Provisão
+Impostos;L&B Solutions - Impostos;01/05/2026;-R$ 4.000,00;NÃO PAGO;;Conta Corrente;Saída;Provisão
+Impostos;L&B Solutions - Impostos;01/01/2026;-R$ 998,68;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/01/2026;-R$ 700,00;PAGO;01/01/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/01/2026;-R$ 1.924,00;PAGO;01/01/2026;Conta Corrente;Saída;
+Salário;Customic;02/01/2026;R$ 750,00;PAGO;02/01/2026;Conta Corrente;Entrada;
+Livre;15 anos Laura;05/01/2026;-R$ 4.000,00;PAGO;05/01/2026;Conta Corrente;Saída;
+Moradia;Aluguel Apto Cachoeirinha;05/01/2026;R$ 900,00;PAGO;05/01/2026;Conta Corrente;Entrada;
+Moradia;Aluguel Santa Maria B3 102;05/01/2026;R$ 0,00;PAGO;05/01/2026;Conta Corrente;Saída;
+Moradia;Aluguel Santa Maria H3 105;05/01/2026;-R$ 929,98;PAGO;05/01/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria B3 102;05/01/2026;-R$ 398,89;PAGO;05/01/2026;Conta Corrente;Saída;
+Salário;Customic;26/09/2025;R$ 750,00;PAGO;26/09/2025;Conta Corrente;Entrada;
+Salário;HMV;01/10/2025;R$ 1.703,66;PAGO;01/10/2025;Conta Corrente;Entrada;Desconto de R$ 630,64 de farmácia
+Pensões;Fernando;01/10/2025;-R$ 810,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Pensões;Fernando;01/11/2025;-R$ 810,00;PAGO;01/11/2025;Conta Corrente;Saída;
+Pensões;Fernando;01/12/2025;-R$ 810,00;PAGO;01/12/2025;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;05/01/2026;R$ 424,35;PAGO;05/01/2026;Conta Corrente;Saída;
+Transporte;Parcelamento Carro;01/10/2025;-R$ 1.000,00;PAGO;01/10/2025;Conta Corrente;Saída;Ultima parcela
+Livre;Ajuda Gladis;01/10/2025;-R$ 2.000,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/10/2025;-R$ 379,50;PAGO;01/10/2025;Conta Corrente;Saída;
+Educação;Curso Laura;01/10/2025;-R$ 278,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Livre;Oculos Naira;01/10/2025;-R$ 150,00;PAGO;01/10/2025;Conta Corrente;Saída;Ultima parcela
+Impostos;L&B Solutions - Impostos;02/10/2025;-R$ 1.684,54;PAGO;01/10/2025;Conta Corrente;Saída;Darfweb previdenciário e retenções
+Impostos;CRA - RS;02/10/2025;-R$ 58,96;PAGO;01/10/2025;Conta Corrente;Saída;
+Transporte;Gasolina;03/10/2025;-R$ 50,00;PAGO;03/10/2025;Conta Corrente;Saída;Previsão de despesa
+Alimentação;Mercado;03/10/2025;-R$ 200,00;PAGO;03/10/2025;Conta Corrente;Saída;Previsão de despesa
+Salário;Customic;09/01/2026;R$ 750,00;PAGO;09/01/2026;Conta Corrente;Entrada;
+Livre;Cartão de Crédito;04/10/2025;-R$ 560,31;PAGO;01/10/2025;Conta Corrente;Saída;Santander
+Salário;Customic;04/10/2025;R$ 750,00;PAGO;04/10/2025;Conta Corrente;Entrada;
+Salário;Cofelma;05/10/2025;R$ 19.000,00;PAGO;01/10/2025;Conta Corrente;Entrada;
+Moradia;Condomínio Santa Maria B3 102;05/10/2025;-R$ 395,06;PAGO;01/10/2025;Conta Corrente;Saída;
+Moradia;Aluguel Santa Maria B3 102;05/10/2025;-R$ 929,98;PAGO;01/10/2025;Conta Corrente;Saída;
+Transporte;Estacionamento POA;05/10/2025;-R$ 280,00;PAGO;03/10/2025;Conta Corrente;Saída;
+Moradia;Aluguel Apto Cachoeirinha;05/10/2025;R$ 800,00;PAGO;07/10/2025;Conta Corrente;Entrada;
+Moradia;Quinto Andar;07/10/2025;-R$ 2.338,88;PAGO;07/10/2025;Conta Corrente;Saída;
+Moradia;Aluguel Casa Gravataí;10/01/2026;R$ 450,00;PAGO;10/01/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/01/2026;-R$ 563,17;PAGO;10/01/2026;Conta Corrente;Saída;
+Moradia;Cássio;10/10/2025;-R$ 1.000,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;10/10/2025;-R$ 94,28;PAGO;02/10/2025;Conta Corrente;Saída;Parcelamento MEI 02/60
+Transporte;Gasolina;10/10/2025;-R$ 50,00;PAGO;10/10/2025;Conta Corrente;Saída;Previsão de despesa
+Moradia;Condomínio POA;10/10/2025;-R$ 600,06;PAGO;10/10/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/01/2026;-R$ 58,47;PAGO;10/01/2026;Conta Corrente;Saída;
+Moradia;Caixa Apto Cachoeirinha;10/10/2025;-R$ 563,17;PAGO;10/10/2025;Conta Corrente;Saída;
+Moradia;Aluguel Casa Gravataí;10/10/2025;R$ 450,00;PAGO;10/10/2025;Conta Corrente;Entrada;
+Livre;15 anos Laura;11/10/2025;R$ 0,00;PAGO;11/10/2025;Conta Corrente;Saída;
+Salário;Customic;11/10/2025;R$ 750,00;PAGO;11/10/2025;Conta Corrente;Entrada;
+Salário;HMV;15/10/2025;R$ 2.954,00;PAGO;15/10/2025;Conta Corrente;Entrada;
+Saúde;Cooparticipação Unimed;10/09/2025;-R$ 2.443,71;PAGO;01/10/2025;Conta Corrente;Saída;
+Livre;Cartão de Crédito;17/10/2025;-R$ 2.202,49;PAGO;17/10/2025;Conta Corrente;Saída;Nubank
+Salário;Customic;18/10/2025;R$ 750,00;PAGO;18/10/2025;Conta Corrente;Entrada;
+Educação;Pós Naira;25/10/2025;-R$ 89,80;PAGO;25/10/2025;Conta Corrente;Saída;
+Salário;Customic;25/10/2025;R$ 750,00;PAGO;25/10/2025;Conta Corrente;Entrada;
+Impostos;L&B Solutions - Impostos;31/10/2025;-R$ 59,60;PAGO;01/10/2025;Conta Corrente;Saída;Parcelamento MEI 02/60
+Impostos;L&B Solutions - Impostos;31/10/2025;-R$ 318,81;PAGO;01/10/2025;Conta Corrente;Saída;Parcelamento MEI 02/60
+Impostos;L&B Solutions - Contador;01/11/2025;-R$ 379,50;PAGO;01/11/2025;Conta Corrente;Saída;
+Salário;Customic;01/11/2025;R$ 750,00;PAGO;01/11/2025;Conta Corrente;Entrada;
+Saúde;Cooparticipação Unimed;10/01/2026;-R$ 2.500,00;PAGO;10/01/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/01/2026;-R$ 89,90;PAGO;10/01/2026;Conta Corrente;Saída;
+Contas Básicas;Telefone + internet CLARO;15/01/2026;-R$ 254,81;PAGO;15/01/2026;Conta Corrente;Saída;
+Salário;Customic;16/01/2026;R$ 750,00;PAGO;16/01/2026;Conta Corrente;Entrada;
+Moradia;Rescisão contrato apto POA;16/01/2026;-R$ 236,75;PAGO;16/01/2026;Conta Corrente;Saída;
+Salário;Customic;23/01/2026;R$ 750,00;PAGO;23/01/2026;Conta Corrente;Entrada;
+Salário;Customic;30/01/2026;R$ 750,00;PAGO;30/01/2026;Conta Corrente;Entrada;
+Moradia;Cássio;01/02/2026;-R$ 1.000,00;PAGO;01/02/2026;Conta Corrente;Saída;
+Pensões;Fernando;01/02/2026;-R$ 1.000,00;PAGO;01/02/2026;Conta Corrente;Saída;
+Pensões;José;01/02/2026;-R$ 550,00;PAGO;01/02/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/02/2026;-R$ 379,50;PAGO;;Conta Corrente;Saída;
+Moradia;Cássio;01/11/2025;-R$ 1.000,00;PAGO;01/11/2025;Conta Corrente;Saída;
+Pensões;Samanta;01/02/2026;-R$ 700,00;PAGO;01/02/2026;Conta Corrente;Saída;
+Impostos;CRA - RS;02/11/2025;-R$ 58,96;PAGO;02/11/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Impostos;03/11/2025;-R$ 388,13;PAGO;11/11/2025;Conta Corrente;Saída;Mensalidade Contabilidade
+Moradia;Condomínio Santa Maria B3 102;05/11/2025;-R$ 402,71;PAGO;11/11/2025;Conta Corrente;Saída;
+Moradia;Aluguel Santa Maria B3 102;05/11/2025;-R$ 1.024,83;PAGO;11/11/2025;Conta Corrente;Saída;
+Moradia;Aluguel Apto Cachoeirinha;05/11/2025;R$ 800,00;PAGO;05/11/2025;Conta Corrente;Entrada;
+Livre;15 anos Laura;05/11/2025;-R$ 3.600,00;PAGO;05/11/2025;Conta Corrente;Saída;
+Salário;Cofelma;05/11/2025;R$ 19.000,00;PAGO;05/11/2025;Conta Corrente;Entrada;
+Moradia;Luz Apto Poa;06/11/2025;-R$ 160,29;PAGO;06/11/2025;Conta Corrente;Saída;
+Salário;Customic;08/11/2025;R$ 750,00;PAGO;08/11/2025;Conta Corrente;Entrada;
+Salário;HMV;09/11/2025;R$ 12.500,00;PAGO;09/11/2025;Conta Corrente;Entrada;Previsão de rescisão
+Saúde;Cooparticipação Unimed;10/10/2025;-R$ 2.462,25;PAGO;31/10/2025;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/11/2025;-R$ 2.500,00;PAGO;10/11/2025;Conta Corrente;Saída;
+Pensões;Tieda;01/02/2026;-R$ 1.924,00;PAGO;01/02/2026;Conta Corrente;Saída;
+Moradia;Caixa Apto Cachoeirinha;10/11/2025;-R$ 563,17;PAGO;10/11/2025;Conta Corrente;Saída;
+Moradia;Aluguel Casa Gravataí;10/11/2025;R$ 450,00;PAGO;10/11/2025;Conta Corrente;Entrada;
+Impostos;L&B Solutions - Impostos;12/11/2025;-R$ 1.324,53;PAGO;11/11/2025;Conta Corrente;Saída;Darfweb previdenciário e retenções 09_2025
+Salário;HMV;14/11/2025;R$ 0,00;PAGO;14/11/2025;Conta Corrente;Entrada;
+Salário;Customic;15/11/2025;R$ 750,00;PAGO;15/11/2025;Conta Corrente;Entrada;
+Livre;15 anos Laura;05/02/2026;-R$ 3.600,00;PAGO;05/02/2026;;;
+Impostos;L&B Solutions - Impostos;19/11/2025;-R$ 1.219,77;PAGO;11/11/2025;Conta Corrente;Saída;Darfweb previdenciário e retenções 10_2025
+Impostos;L&B Solutions - Impostos;21/11/2025;-R$ 998,68;PAGO;11/11/2025;Conta Corrente;Saída;DAS Simples Nacional 10_2025
+Salário;Customic;22/11/2025;R$ 750,00;PAGO;22/11/2025;Conta Corrente;Entrada;
+Salário;Customic;29/11/2025;R$ 750,00;PAGO;29/11/2025;Conta Corrente;Entrada;
+Impostos;L&B Solutions - Contador;01/12/2025;-R$ 379,50;PAGO;09/12/2025;Conta Corrente;Saída;
+Salário;HMV;01/12/2025;R$ 0,00;PAGO;01/12/2025;Conta Corrente;Entrada;
+Moradia;Aluguel Apto Cachoeirinha;05/02/2026;R$ 800,00;PAGO;05/02/2026;Conta Corrente;Entrada;
+Moradia;Aluguel Santa Maria H3 105;05/02/2026;-R$ 929,98;PAGO;05/02/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/12/2025;-R$ 2.500,00;PAGO;10/12/2025;Conta Corrente;Saída;
+Salário;Cofelma;05/02/2026;R$ 19.000,00;PAGO;05/02/2026;Conta Corrente;Entrada;
+Moradia;Condomínio Santa Maria H3 105;05/02/2026;R$ 428,07;PAGO;09/12/2025;Conta Corrente;Saída;
+Moradia;Aluguel Casa Gravataí;10/02/2026;R$ 450,00;PAGO;10/02/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/02/2026;-R$ 563,17;PAGO;10/02/2026;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/02/2026;-R$ 58,47;PAGO;10/02/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/02/2026;-R$ 2.500,00;PAGO;10/02/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/02/2026;-R$ 89,90;PAGO;10/02/2026;Conta Corrente;Saída;
+Moradia;Rescisão contrato apto POA;16/02/2026;-R$ 236,75;NÃO PAGO;16/02/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/03/2026;-R$ 1.000,00;PAGO;01/03/2026;Conta Corrente;Saída;
+Pensões;Fernando;01/03/2026;-R$ 1.000,00;PAGO;01/03/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/01/2027;-R$ 2.500,00;NÃO PAGO;10/01/2027;Conta Corrente;Saída;Previsão
+Saúde;Cooparticipação Unimed;10/02/2027;-R$ 2.500,00;NÃO PAGO;10/02/2027;Conta Corrente;Saída;Previsão
+Saúde;Cooparticipação Unimed;10/03/2027;-R$ 2.500,00;NÃO PAGO;10/03/2027;Conta Corrente;Saída;Previsão
+Pensões;José;01/03/2026;-R$ 550,00;PAGO;01/03/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/09/2025;-R$ 95,47;PAGO;01/10/2025;Conta Corrente;Saída;
+Moradia;Internet SM;10/10/2025;-R$ 89,90;PAGO;01/10/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/03/2026;-R$ 379,50;PAGO;;Conta Corrente;Saída;
+Moradia;Internet SM;10/11/2025;-R$ 91,86;PAGO;11/11/2025;Conta Corrente;Saída;
+Pensões;Samanta;01/03/2026;-R$ 700,00;PAGO;01/03/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/03/2026;-R$ 1.924,00;PAGO;01/03/2026;Conta Corrente;Saída;
+Moradia;Aluguel Apto Cachoeirinha;05/03/2026;R$ 800,00;NÃO PAGO;05/05/2026;Conta Corrente;Entrada;
+Salário;Cofelma;05/03/2026;R$ 19.000,00;PAGO;05/03/2026;Conta Corrente;Entrada;
+Moradia;Aluguel Casa Gravataí;10/03/2026;R$ 450,00;PAGO;10/03/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/03/2026;-R$ 563,17;PAGO;10/03/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/03/2026;R$ 429,11;PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/03/2026;-R$ 58,47;PAGO;10/03/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/03/2026;-R$ 2.500,00;PAGO;10/03/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/03/2026;-R$ 89,90;PAGO;10/03/2026;Conta Corrente;Saída;
+Pensões;Samanta;01/10/2025;-R$ 700,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Livre;15 anos Laura;13/03/2026;-R$ 3.600,00;PAGO;13/03/2026;Conta Corrente;Saída;
+Moradia;Rescisão contrato apto POA;16/03/2026;-R$ 236,75;NÃO PAGO;16/03/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/04/2026;-R$ 1.000,00;PAGO;01/04/2026;Conta Corrente;Saída;
+Salário;Customic;01/04/2026;R$ 3.000,00;NÃO PAGO;01/04/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/04/2026;-R$ 1.000,00;PAGO;01/04/2026;Conta Corrente;Saída;
+Pensões;José;01/04/2026;-R$ 550,00;PAGO;01/04/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/04/2026;-R$ 379,50;PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/04/2026;-R$ 700,00;PAGO;01/04/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/04/2026;-R$ 1.924,00;PAGO;01/04/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/01/2027;-R$ 89,90;NÃO PAGO;10/01/2027;Conta Corrente;Saída;
+Moradia;Internet SM;10/02/2027;-R$ 89,90;NÃO PAGO;10/02/2027;Conta Corrente;Saída;
+Salário;Cofelma;05/04/2026;R$ 19.000,00;PAGO;05/04/2026;Conta Corrente;Entrada;
+Pensões;Samanta;01/11/2025;-R$ 700,00;PAGO;01/11/2025;Conta Corrente;Saída;
+Pensões;Samanta;01/12/2025;-R$ 700,00;PAGO;01/12/2025;Conta Corrente;Saída;
+Pensões;Samanta;01/12/2025;-R$ 700,00;PAGO;01/12/2025;Conta Corrente;Saída;
+Moradia;Cássio;01/12/2025;-R$ 1.000,00;PAGO;01/12/2025;Conta Corrente;Saída;
+Impostos;CRA - RS;02/12/2025;-R$ 58,96;PAGO;02/12/2025;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria B3 102;05/12/2025;-R$ 395,06;PAGO;05/12/2025;Conta Corrente;Saída;
+Moradia;Aluguel Santa Maria B3 102;05/12/2025;-R$ 1.024,21;PAGO;09/12/2025;Conta Corrente;Saída;
+Moradia;Aluguel Apto Cachoeirinha;05/12/2025;R$ 800,00;PAGO;05/12/2025;Conta Corrente;Entrada;
+Livre;15 anos Laura;05/12/2025;R$ 0,00;PAGO;05/12/2025;;;
+Salário;Cofelma;05/12/2025;R$ 19.000,00;PAGO;05/12/2025;Conta Corrente;Entrada;
+Moradia;Luz Apto SM;08/09/2025;-R$ 84,11;PAGO;08/09/2025;Conta Corrente;Saída;Ref.ago/25
+Moradia;Luz Apto SM;01/05/2026;-R$ 250,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;Previsão
+Moradia;Luz Apto SM;01/06/2026;-R$ 250,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;Previsão
+Moradia;Luz Apto SM;01/07/2026;-R$ 250,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;Previsão
+Moradia;Luz Apto SM;01/08/2026;-R$ 250,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;Previsão
+Moradia;Luz Apto SM;01/09/2026;-R$ 250,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;Previsão
+Moradia;Luz Apto SM;01/10/2026;-R$ 250,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;Previsão
+Salário;Customic;06/12/2025;R$ 750,00;PAGO;06/12/2025;Conta Corrente;Entrada;
+Moradia;Luz Apto SM;01/11/2026;-R$ 250,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Telefone + internet CLARO;15/10/2025;-R$ 254,81;PAGO;15/10/2025;Conta Corrente;Saída;
+Moradia;Caixa Apto Cachoeirinha;10/12/2025;-R$ 563,17;PAGO;10/12/2025;Conta Corrente;Saída;
+Moradia;Aluguel Casa Gravataí;10/12/2025;R$ 450,00;PAGO;10/12/2025;Conta Corrente;Entrada;
+Salário;Customic;13/12/2025;R$ 750,00;PAGO;13/12/2025;Conta Corrente;Entrada;
+Salário;HMV;15/12/2025;R$ 0,00;PAGO;15/12/2025;Conta Corrente;Entrada;
+Contas Básicas;Telefone + internet CLARO;15/11/2025;-R$ 254,81;PAGO;15/11/2025;Conta Corrente;Saída;
+Salário;Customic;20/12/2025;R$ 750,00;PAGO;20/12/2025;Conta Corrente;Entrada;
+Salário;Customic;27/12/2025;R$ 750,00;PAGO;27/12/2025;Conta Corrente;Entrada;
+Moradia;Aluguel Apto Cachoeirinha;31/12/2025;R$ 400,00;PAGO;;Conta Corrente;Entrada;
+Moradia;Aluguel Apto Cachoeirinha;10/04/2026;R$ 1.100,00;NÃO PAGO;15/05/2026;Conta Corrente;Entrada;
+Pensões;Tieda;01/10/2025;-R$ 1.500,00;PAGO;01/10/2025;Conta Corrente;Saída;
+Pensões;Tieda;04/10/2025;-R$ 424,00;PAGO;01/10/2025;Conta Corrente;Saída;Empréstimo
+Moradia;Aluguel Casa Gravataí;10/04/2026;R$ 500,00;PAGO;10/04/2026;Conta Corrente;Entrada;
+Pensões;Tieda;01/11/2025;-R$ 1.924,00;PAGO;01/11/2025;Conta Corrente;Saída;
+Moradia;Caixa Apto Cachoeirinha;10/04/2026;-R$ 563,17;PAGO;10/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/04/2026;-R$ 145,48;PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/04/2026;-R$ 145,48;PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/04/2026;R$ 450,00;PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/04/2026;-R$ 58,47;PAGO;10/04/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/04/2026;-R$ 3.010,00;PAGO;10/04/2026;Conta Corrente;Saída;
+Moradia;Internet SM;10/04/2026;-R$ 89,90;PAGO;10/04/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;20/04/2026;-R$ 1.244,49;NÃO PAGO;20/04/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;20/04/2026;R$ 1.244,49;PAGO;20/04/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/05/2026;-R$ 1.000,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;
+Salário;Customic;01/05/2026;R$ 3.000,00;NÃO PAGO;01/05/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/05/2026;-R$ 1.000,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;
+Pensões;José;01/05/2026;-R$ 550,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/05/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/05/2026;-R$ 700,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/05/2026;-R$ 1.924,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/05/2026;R$ 19.000,00;NÃO PAGO;05/05/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/05/2026;-R$ 563,17;NÃO PAGO;10/05/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/05/2026;-R$ 600,00;NÃO PAGO;10/05/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/05/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/05/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/05/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/05/2026;-R$ 58,47;NÃO PAGO;10/05/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/05/2026;-R$ 3.000,00;NÃO PAGO;10/05/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/05/2026;-R$ 89,90;NÃO PAGO;10/05/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/05/2026;R$ 1.000,00;NÃO PAGO;10/05/2026;Conta Corrente;Entrada;
+Moradia;Rescisão contrato apto SM;13/05/2026;-R$ 718,07;NÃO PAGO;13/05/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/06/2026;-R$ 1.000,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Salário;Customic;01/06/2026;R$ 3.000,00;NÃO PAGO;01/06/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/06/2026;-R$ 1.000,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Pensões;José;01/06/2026;-R$ 550,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/06/2026;-R$ 379,50;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Pensões;Samanta;01/06/2026;-R$ 700,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/06/2026;-R$ 1.924,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/06/2026;R$ 19.000,00;NÃO PAGO;05/06/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/06/2026;-R$ 563,17;NÃO PAGO;10/06/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/06/2026;-R$ 600,00;NÃO PAGO;10/06/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/06/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/06/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/06/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/06/2026;-R$ 58,47;NÃO PAGO;10/06/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/06/2026;-R$ 3.000,00;NÃO PAGO;10/06/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/06/2026;-R$ 89,90;NÃO PAGO;10/06/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/06/2026;R$ 1.000,00;NÃO PAGO;10/06/2026;Conta Corrente;Entrada;
+Moradia;Rescisão contrato apto SM;13/06/2026;-R$ 718,07;NÃO PAGO;13/06/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/07/2026;-R$ 1.000,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Salário;Customic;01/07/2026;R$ 3.000,00;NÃO PAGO;01/07/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/07/2026;-R$ 1.000,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Pensões;José;01/07/2026;-R$ 550,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/07/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/07/2026;-R$ 700,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/07/2026;-R$ 1.924,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/07/2026;R$ 19.000,00;NÃO PAGO;05/07/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/07/2026;-R$ 563,17;NÃO PAGO;10/07/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/07/2026;-R$ 600,00;NÃO PAGO;10/07/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/07/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/07/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/07/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/07/2026;-R$ 58,47;NÃO PAGO;10/07/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/07/2026;-R$ 3.000,00;NÃO PAGO;10/07/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/07/2026;-R$ 89,90;NÃO PAGO;10/07/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/07/2026;R$ 1.000,00;NÃO PAGO;10/07/2026;Conta Corrente;Entrada;
+Moradia;Cássio;01/08/2026;-R$ 1.000,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Salário;Customic;01/08/2026;R$ 3.000,00;NÃO PAGO;01/08/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/08/2026;-R$ 1.000,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Pensões;José;01/08/2026;-R$ 550,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/08/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/08/2026;-R$ 700,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/08/2026;-R$ 1.924,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/08/2026;R$ 19.000,00;NÃO PAGO;05/08/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/08/2026;-R$ 563,17;NÃO PAGO;10/08/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/08/2026;-R$ 600,00;NÃO PAGO;10/08/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/08/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/08/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/08/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/08/2026;-R$ 58,47;NÃO PAGO;10/08/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/08/2026;-R$ 3.000,00;NÃO PAGO;10/08/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/08/2026;-R$ 89,90;NÃO PAGO;10/08/2026;Conta Corrente;Saída;
+Contas Básicas;Telefone + internet CLARO;15/12/2025;-R$ 254,81;PAGO;15/12/2025;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/08/2026;R$ 1.000,00;NÃO PAGO;10/08/2026;Conta Corrente;Entrada;
+Moradia;Cássio;01/09/2026;-R$ 1.000,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Salário;Customic;01/09/2026;R$ 3.000,00;NÃO PAGO;01/09/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/09/2026;-R$ 1.000,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Pensões;José;01/09/2026;-R$ 550,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/12/2025;-R$ 1.924,00;PAGO;01/12/2025;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/09/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/09/2026;-R$ 700,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/09/2026;-R$ 1.924,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/09/2026;R$ 19.000,00;NÃO PAGO;05/09/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/09/2026;-R$ 563,17;NÃO PAGO;10/09/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/09/2026;-R$ 600,00;NÃO PAGO;10/09/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/09/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/09/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/09/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/09/2026;-R$ 58,47;NÃO PAGO;10/09/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/09/2026;-R$ 3.000,00;NÃO PAGO;10/09/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/09/2026;-R$ 89,90;NÃO PAGO;10/09/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/09/2026;R$ 1.000,00;NÃO PAGO;10/09/2026;Conta Corrente;Entrada;
+Moradia;Cássio;01/10/2026;-R$ 1.000,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;
+Salário;Customic;01/10/2026;R$ 3.000,00;NÃO PAGO;01/10/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/10/2026;-R$ 1.000,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;
+Pensões;José;01/10/2026;-R$ 550,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/10/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Tieda;01/10/2026;-R$ 1.924,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/10/2026;R$ 19.000,00;NÃO PAGO;05/10/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/10/2026;-R$ 563,17;NÃO PAGO;10/10/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/10/2026;-R$ 600,00;NÃO PAGO;10/10/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;10/10/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;10/10/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/10/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/10/2026;-R$ 58,47;NÃO PAGO;10/10/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/10/2026;-R$ 3.000,00;NÃO PAGO;10/10/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/10/2026;-R$ 89,90;NÃO PAGO;10/10/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/10/2026;R$ 1.000,00;NÃO PAGO;10/10/2026;Conta Corrente;Entrada;
+Moradia;Cássio;01/11/2026;-R$ 1.000,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Salário;Customic;01/11/2026;R$ 3.000,00;NÃO PAGO;01/11/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/11/2026;-R$ 1.000,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Pensões;José;01/11/2026;-R$ 550,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/11/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/11/2026;-R$ 700,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/11/2026;-R$ 1.924,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/11/2026;R$ 19.000,00;NÃO PAGO;05/11/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/11/2026;-R$ 563,17;NÃO PAGO;10/11/2026;Conta Corrente;Saída;
+Moradia;Caixa Casa Canoas;10/11/2026;-R$ 600,00;NÃO PAGO;10/11/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/11/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Convênio Cauzzo Mais;10/11/2026;-R$ 58,47;NÃO PAGO;10/11/2026;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/11/2026;-R$ 3.000,00;NÃO PAGO;10/11/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/11/2026;-R$ 89,90;NÃO PAGO;10/11/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/11/2026;R$ 1.000,00;NÃO PAGO;10/11/2026;Conta Corrente;Entrada;
+Contas Básicas;Claro Naira;15/11/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;15/11/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Moradia;Cássio;01/12/2026;-R$ 1.000,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Salário;Customic;01/12/2026;R$ 3.000,00;NÃO PAGO;01/12/2026;Conta Corrente;Entrada;
+Pensões;Fernando;01/12/2026;-R$ 1.000,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Pensões;José;01/12/2026;-R$ 550,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Impostos;L&B Solutions - Contador;01/12/2026;-R$ 379,50;NÃO PAGO;;Conta Corrente;Saída;
+Pensões;Samanta;01/12/2026;-R$ 700,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Pensões;Tieda;01/12/2026;-R$ 1.924,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;
+Salário;Cofelma;05/12/2026;R$ 19.000,00;NÃO PAGO;05/12/2026;Conta Corrente;Entrada;
+Moradia;Caixa Apto Cachoeirinha;10/12/2026;-R$ 563,17;NÃO PAGO;10/12/2026;Conta Corrente;Saída;
+Moradia;Condomínio Santa Maria H3 105;10/12/2026;-R$ 450,00;NÃO PAGO;09/12/2025;Conta Corrente;Saída;
+Saúde;Cooparticipação Unimed;10/12/2026;-R$ 3.000,00;NÃO PAGO;10/12/2026;Conta Corrente;Saída;Previsão
+Moradia;Internet SM;10/12/2026;-R$ 89,90;NÃO PAGO;10/12/2026;Conta Corrente;Saída;
+Moradia;Parcela Compra Casa Gravataí;10/12/2026;R$ 1.000,00;NÃO PAGO;10/12/2026;Conta Corrente;Entrada;
+Salário;Customic;01/01/2027;R$ 3.000,00;NÃO PAGO;01/01/2027;Conta Corrente;Entrada;
+Pensões;Tieda;01/01/2027;-R$ 1.924,00;NÃO PAGO;01/01/2027;Conta Corrente;Saída;
+Contas Básicas;Claro Naira;15/12/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Contas Básicas;Claro Rodrigo;15/12/2026;-R$ 145,48;NÃO PAGO;19/04/2026;Conta Corrente;Saída;
+Transporte;Viagens POA;31/05/2026;-R$ 1.500,00;NÃO PAGO;31/05/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;30/06/2026;-R$ 1.500,00;NÃO PAGO;30/06/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;31/07/2026;-R$ 1.500,00;NÃO PAGO;31/07/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;31/08/2026;-R$ 1.500,00;NÃO PAGO;31/08/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;30/09/2026;-R$ 1.500,00;NÃO PAGO;30/09/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;31/10/2026;-R$ 1.500,00;NÃO PAGO;31/10/2026;Conta Corrente;Saída;Previsão
+Transporte;Viagens POA;30/11/2026;-R$ 1.500,00;NÃO PAGO;30/11/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/05/2026;-R$ 500,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/06/2026;-R$ 500,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/07/2026;-R$ 500,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/08/2026;-R$ 500,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/09/2026;-R$ 500,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/10/2026;-R$ 500,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;Previsão
+Transporte;Combustível SM;01/11/2026;-R$ 500,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/05/2026;-R$ 800,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/06/2026;-R$ 800,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/07/2026;-R$ 800,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/08/2026;-R$ 800,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/09/2026;-R$ 800,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/10/2026;-R$ 800,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/11/2026;-R$ 800,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;Previsão
+Alimentação;Alimentação Mensal;01/12/2026;-R$ 800,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Empréstimo;08/05/2026;-R$ 250,00;NÃO PAGO;08/05/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Empréstimo;08/06/2026;-R$ 250,00;NÃO PAGO;08/06/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Empréstimo;08/07/2026;-R$ 250,00;NÃO PAGO;08/07/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Empréstimo;08/08/2026;-R$ 250,00;NÃO PAGO;08/08/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/05/2026;-R$ 500,00;NÃO PAGO;01/05/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/06/2026;-R$ 500,00;NÃO PAGO;01/06/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/07/2026;-R$ 500,00;NÃO PAGO;01/07/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/08/2026;-R$ 500,00;NÃO PAGO;01/08/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/09/2026;-R$ 500,00;NÃO PAGO;01/09/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/10/2026;-R$ 500,00;NÃO PAGO;01/10/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/11/2026;-R$ 500,00;NÃO PAGO;01/11/2026;Conta Corrente;Saída;Previsão
+Contas Básicas;Farmácia;01/12/2026;-R$ 500,00;NÃO PAGO;01/12/2026;Conta Corrente;Saída;Previsão

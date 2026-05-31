@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Diário de contas - uso rápido pelo celular">
+    <title>Diário · Gestão de Orçamento</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #eef2ff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --text-light: #9ca3af;
+            --radius: 14px;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.45;
+            font-size: 16px;
+            overscroll-behavior-y: contain;
+        }
+
+        body { padding-bottom: env(safe-area-inset-bottom); }
+
+        .hidden { display: none !important; }
+
+        /* ===== Loading ===== */
+        .loading-screen {
+            position: fixed; inset: 0;
+            background: white;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+            gap: 1rem;
+        }
+        .loader {
+            width: 44px; height: 44px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== Top bar ===== */
+        .topbar {
+            position: sticky; top: 0; z-index: 50;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: calc(env(safe-area-inset-top) + 14px) 16px 18px;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+        }
+        .topbar-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .topbar-title {
+            font-size: 1.05rem; font-weight: 600; opacity: 0.95;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .icon-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .icon-btn:active { background: rgba(255,255,255,0.3); }
+        .icon-btn svg { width: 20px; height: 20px; }
+
+        /* Month switcher */
+        .month-switcher {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 8px 10px;
+            margin-bottom: 14px;
+        }
+        .month-switcher button {
+            background: transparent; border: none; color: white; cursor: pointer;
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .month-switcher button:active { background: rgba(255,255,255,0.2); }
+        .month-label { font-weight: 600; font-size: 1rem; text-transform: capitalize; }
+
+        /* Summary */
+        .summary {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+        }
+        .summary-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .summary-card .lbl {
+            font-size: 0.7rem; opacity: 0.85;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            margin-bottom: 2px;
+        }
+        .summary-card .val {
+            font-size: 0.95rem; font-weight: 700;
+            white-space: nowrap;
+        }
+        .summary-card.pending { background: rgba(254, 226, 226, 0.25); }
+        .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
+
+        /* ===== Tabs ===== */
+        .tabs {
+            position: sticky; top: 0; z-index: 40;
+            display: flex;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .tab {
+            flex: 1;
+            padding: 14px 8px;
+            border: none; background: transparent;
+            font-size: 0.9rem; font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.15s;
+        }
+        .tab.active { color: var(--primary); }
+        .tab.active::after {
+            content: '';
+            position: absolute; bottom: 0; left: 20%; right: 20%;
+            height: 3px; background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+        .tab .badge {
+            display: inline-block;
+            background: var(--danger);
+            color: white;
+            font-size: 0.7rem;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            font-weight: 700;
+            min-width: 18px;
+        }
+        .tab.active .badge { background: var(--primary); }
+
+        /* ===== Content ===== */
+        main { padding: 12px 12px 90px; }
+
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+
+        .empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+        .empty .emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+        .empty p { font-size: 0.95rem; }
+
+        /* ===== Bill card ===== */
+        .bill-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            cursor: pointer;
+            border-left: 4px solid var(--border);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .bill-card:active { transform: scale(0.98); }
+        .bill-card.paid { border-left-color: var(--success); opacity: 0.78; }
+        .bill-card.pending { border-left-color: var(--warning); }
+        .bill-card.overdue { border-left-color: var(--danger); }
+
+        .bill-check {
+            flex-shrink: 0;
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .bill-card.paid .bill-check {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+        .bill-check svg { width: 20px; height: 20px; }
+
+        .bill-info { flex: 1; min-width: 0; }
+        .bill-title {
+            font-weight: 600; font-size: 0.95rem;
+            color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .bill-card.paid .bill-title { text-decoration: line-through; color: var(--text-muted); }
+        .recurring-tag {
+            font-size: 0.7rem;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .bill-meta {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+        .bill-due { display: flex; align-items: center; gap: 3px; }
+        .bill-due.overdue { color: var(--danger); font-weight: 600; }
+        .bill-due.today { color: var(--warning); font-weight: 600; }
+
+        .bill-amount {
+            font-weight: 700; font-size: 1rem;
+            color: var(--text);
+            text-align: right;
+            white-space: nowrap;
+        }
+        .bill-card.paid .bill-amount { color: var(--text-muted); }
+
+        /* ===== Recurring suggestion card ===== */
+        .suggest-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px dashed var(--primary);
+            background: var(--primary-light);
+        }
+        .suggest-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px;
+        }
+        .suggest-title { font-weight: 600; font-size: 0.95rem; }
+        .suggest-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+        .suggest-actions { display: flex; gap: 8px; }
+        .btn-primary, .btn-secondary {
+            flex: 1;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-weight: 600; font-size: 0.85rem;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: var(--primary); color: white;
+        }
+        .btn-primary:active { background: var(--primary-dark); }
+        .btn-secondary {
+            background: white; color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        /* ===== Section header ===== */
+        .section-header {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin: 18px 4px 8px;
+        }
+        .section-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .section-count { font-size: 0.8rem; color: var(--text-light); }
+
+        /* ===== Modal (detalhe) ===== */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: flex; align-items: flex-end;
+            justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+        .modal {
+            background: var(--bg);
+            width: 100%;
+            max-width: 600px;
+            max-height: 92vh;
+            border-radius: 20px 20px 0 0;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.25s ease;
+        }
+        .modal-overlay.open .modal { transform: translateY(0); }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 16px;
+            position: relative;
+        }
+        .modal-grab {
+            width: 36px; height: 4px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 2px;
+            margin: -4px auto 12px;
+        }
+        .modal-close {
+            position: absolute; top: 14px; right: 14px;
+            background: rgba(255,255,255,0.2);
+            border: none; color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-title {
+            font-size: 1.1rem; font-weight: 700;
+            padding-right: 40px;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+        .modal-sub {
+            font-size: 0.85rem; opacity: 0.9;
+            display: flex; gap: 10px; flex-wrap: wrap;
+        }
+        .modal-sub span { display: inline-flex; align-items: center; gap: 4px; }
+
+        .modal-toggle-row {
+            background: var(--card);
+            padding: 14px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .toggle-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.92rem; font-weight: 500;
+        }
+        .switch {
+            position: relative; display: inline-block;
+            width: 46px; height: 26px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .switch-slider {
+            position: absolute; cursor: pointer;
+            inset: 0;
+            background: var(--border);
+            border-radius: 26px;
+            transition: 0.2s;
+        }
+        .switch-slider::before {
+            content: '';
+            position: absolute;
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .switch input:checked + .switch-slider { background: var(--primary); }
+        .switch input:checked + .switch-slider::before { transform: translateX(20px); }
+
+        .modal-body {
+            flex: 1; overflow-y: auto;
+            padding: 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px; margin-bottom: 16px;
+        }
+        .stats-grid .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .stats-grid .lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+        .stats-grid .val { font-size: 0.95rem; font-weight: 700; }
+        .stats-grid .val.danger { color: var(--danger); }
+        .stats-grid .val.success { color: var(--success); }
+
+        .history-title {
+            font-size: 0.8rem; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.04em;
+            margin: 12px 4px 8px;
+        }
+
+        .history-row {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            border-left: 4px solid var(--border);
+        }
+        .history-row.paid { border-left-color: var(--success); }
+        .history-row.pending { border-left-color: var(--warning); }
+        .history-row.overdue { border-left-color: var(--danger); }
+        .history-row.missing { border-left-color: var(--text-light); opacity: 0.65; }
+
+        .history-month {
+            min-width: 64px;
+            text-align: center;
+            font-weight: 700;
+            text-transform: capitalize;
+            font-size: 0.85rem;
+            line-height: 1.1;
+        }
+        .history-month small { display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 500; }
+
+        .history-info { flex: 1; min-width: 0; font-size: 0.82rem; color: var(--text-muted); }
+        .history-info strong { color: var(--text); display: block; font-size: 0.95rem; font-weight: 700; margin-bottom: 1px; }
+        .history-status { font-size: 0.78rem; }
+        .history-status.paid { color: var(--success); font-weight: 600; }
+        .history-status.pending { color: var(--warning); font-weight: 600; }
+        .history-status.overdue { color: var(--danger); font-weight: 600; }
+        .history-status.missing { color: var(--text-light); }
+
+        .history-action {
+            flex-shrink: 0;
+        }
+        .pay-btn {
+            background: var(--success); color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem; font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .pay-btn.unpay { background: var(--text-light); }
+        .pay-btn:active { transform: scale(0.95); }
+        .create-btn {
+            background: var(--primary); color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem; font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--text);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: all 0.25s;
+            z-index: 300;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.error { background: var(--danger); }
+        .toast.success { background: var(--success); }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+    <div class="loader"></div>
+    <p>Carregando...</p>
+</div>
+
+<div id="app" class="hidden">
+    <header class="topbar">
+        <div class="topbar-row">
+            <div class="topbar-title">
+                <span>📱</span>
+                <span>Diário</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="index.html" class="icon-btn" title="Início" style="text-decoration:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                </a>
+                <button id="logout-btn" class="icon-btn" title="Sair">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="month-switcher">
+            <button id="prev-month" aria-label="Mês anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="month-label" id="month-label">—</div>
+            <button id="next-month" aria-label="Próximo mês">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card pending">
+                <div class="lbl">Pendente</div>
+                <div class="val" id="sum-pending">R$ 0</div>
+            </div>
+            <div class="summary-card paid">
+                <div class="lbl">Pago</div>
+                <div class="val" id="sum-paid">R$ 0</div>
+            </div>
+            <div class="summary-card">
+                <div class="lbl">Total</div>
+                <div class="val" id="sum-total">R$ 0</div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" data-tab="month">A Pagar <span class="badge" id="badge-month" style="display:none;">0</span></button>
+        <button class="tab" data-tab="recurring">Recorrentes <span class="badge" id="badge-recurring" style="display:none;">0</span></button>
+        <button class="tab" data-tab="paid">Pagos</button>
+    </nav>
+
+    <main>
+        <section id="tab-month" class="tab-section active">
+            <div id="list-pending"></div>
+        </section>
+
+        <section id="tab-recurring" class="tab-section">
+            <div class="section-header">
+                <div class="section-title">Pendentes este mês</div>
+            </div>
+            <div id="list-recurring-suggestions"></div>
+
+            <div class="section-header">
+                <div class="section-title">Todas as recorrentes</div>
+            </div>
+            <div id="list-recurring-all"></div>
+        </section>
+
+        <section id="tab-paid" class="tab-section">
+            <div id="list-paid"></div>
+        </section>
+    </main>
+</div>
+
+<!-- Modal de detalhe -->
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+        <header class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="modal-title">—</div>
+            <div class="modal-sub" id="modal-sub"></div>
+        </header>
+
+        <div class="modal-toggle-row">
+            <label class="toggle-label" for="modal-recurring-switch">
+                <span>🔁</span>
+                <span>Marcar como conta recorrente</span>
+            </label>
+            <label class="switch">
+                <input type="checkbox" id="modal-recurring-switch">
+                <span class="switch-slider"></span>
+            </label>
+        </div>
+
+        <div class="modal-body">
+            <div class="stats-grid">
+                <div class="card">
+                    <div class="lbl">Meses</div>
+                    <div class="val" id="modal-stat-count">0</div>
+                </div>
+                <div class="card">
+                    <div class="lbl">Média</div>
+                    <div class="val" id="modal-stat-avg">R$ 0</div>
+                </div>
+                <div class="card">
+                    <div class="lbl">Último</div>
+                    <div class="val" id="modal-stat-last">R$ 0</div>
+                </div>
+            </div>
+
+            <div class="history-title">Evolução mensal</div>
+            <div id="modal-history"></div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+'use strict';
+
+// ====== Config ======
+const SUPABASE_URL = 'https://uftjltanaiqvdatekroc.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_GoZlDUtla1khO1uUnQ3nRA_z6u1f-Xa';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ====== State ======
+const state = {
+    user: null,
+    familyId: null,
+    allTx: [],            // todas as despesas (todos os meses)
+    viewYear: null,
+    viewMonth: null,      // 0-11
+    activeTab: 'month',
+    currentGroupKey: null // identifica a "conta" aberta no modal
+};
+
+// ====== Init ======
+document.addEventListener('DOMContentLoaded', async () => {
+    const now = new Date();
+    state.viewYear = now.getFullYear();
+    state.viewMonth = now.getMonth();
+
+    setupEvents();
+    await checkAuth();
+});
+
+async function checkAuth() {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            window.location.href = 'index.html';
+            return;
+        }
+        state.user = session.user;
+        await loadFamily();
+        await loadAll();
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+    } catch (e) {
+        console.error(e);
+        window.location.href = 'index.html';
+    }
+}
+
+async function loadFamily() {
+    const { data, error } = await supabaseClient
+        .from('family_members')
+        .select('family_id, role')
+        .eq('user_id', state.user.id);
+    if (error || !data || data.length === 0) return;
+    const member = data.find(f => f.role === 'member');
+    state.familyId = (member || data[0]).family_id;
+}
+
+async function loadAll() {
+    if (!state.familyId) {
+        showToast('Sem família vinculada', 'error');
+        return;
+    }
+    const { data, error } = await supabaseClient
+        .from('transactions')
+        .select('*')
+        .eq('family_id', state.familyId)
+        .eq('type', 'expense')
+        .order('date', { ascending: false });
+    if (error) {
+        console.error(error);
+        showToast('Erro ao carregar dados', 'error');
+        return;
+    }
+    state.allTx = data || [];
+    render();
+}
+
+// ====== Events ======
+function setupEvents() {
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    });
+    document.getElementById('prev-month').addEventListener('click', () => shiftMonth(-1));
+    document.getElementById('next-month').addEventListener('click', () => shiftMonth(1));
+
+    document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'modal-overlay') closeModal();
+    });
+    document.getElementById('modal-recurring-switch').addEventListener('change', onRecurringToggle);
+}
+
+function shiftMonth(delta) {
+    let m = state.viewMonth + delta;
+    let y = state.viewYear;
+    if (m < 0) { m = 11; y -= 1; }
+    if (m > 11) { m = 0; y += 1; }
+    state.viewMonth = m;
+    state.viewYear = y;
+    render();
+}
+
+function switchTab(tab) {
+    state.activeTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + tab));
+}
+
+// ====== Helpers ======
+function fmtMoney(v) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+}
+function fmtMoneyShort(v) {
+    if (!v) return 'R$ 0';
+    if (Math.abs(v) >= 1000) return 'R$ ' + (v / 1000).toFixed(1).replace('.', ',') + 'k';
+    return fmtMoney(v);
+}
+function fmtDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+function monthName(y, m) {
+    const dt = new Date(y, m, 1);
+    return dt.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+function todayISO() {
+    return new Date().toISOString().split('T')[0];
+}
+function txMonth(t) {
+    const d = new Date((t.due_date || t.date) + 'T00:00:00');
+    return { y: d.getFullYear(), m: d.getMonth() };
+}
+function isPaid(t) { return (t.status || 'pending') === 'paid'; }
+
+// Chave de agrupamento "mesma conta entre meses"
+function groupKeyOf(t) {
+    const supplier = (t.supplier || '').trim().toLowerCase();
+    if (supplier) return 'sup::' + supplier;
+    return 'desc::' + (t.description || '').trim().toLowerCase();
+}
+function groupLabelOf(t) {
+    return (t.supplier && t.supplier.trim()) || t.description || 'Sem nome';
+}
+
+function dueStatus(t) {
+    if (isPaid(t)) return 'paid';
+    const due = t.due_date || t.date;
+    if (!due) return 'pending';
+    const today = todayISO();
+    if (due < today) return 'overdue';
+    if (due === today) return 'today';
+    return 'pending';
+}
+
+function showToast(msg, kind = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + kind;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ====== Render ======
+function render() {
+    document.getElementById('month-label').textContent = monthName(state.viewYear, state.viewMonth);
+
+    const monthTx = state.allTx.filter(t => {
+        const { y, m } = txMonth(t);
+        return y === state.viewYear && m === state.viewMonth;
+    });
+
+    const pending = monthTx.filter(t => !isPaid(t));
+    const paid = monthTx.filter(t => isPaid(t));
+
+    const sumPending = pending.reduce((s, t) => s + Number(t.amount || 0), 0);
+    const sumPaid = paid.reduce((s, t) => s + Number(t.amount || 0), 0);
+    document.getElementById('sum-pending').textContent = fmtMoneyShort(sumPending);
+    document.getElementById('sum-paid').textContent = fmtMoneyShort(sumPaid);
+    document.getElementById('sum-total').textContent = fmtMoneyShort(sumPending + sumPaid);
+
+    renderPendingList(pending);
+    renderPaidList(paid);
+    renderRecurring(monthTx);
+}
+
+function renderPendingList(pending) {
+    const c = document.getElementById('list-pending');
+    const badge = document.getElementById('badge-month');
+    if (pending.length === 0) {
+        c.innerHTML = `<div class="empty"><span class="emoji">🎉</span><p>Nenhuma conta pendente neste mês!</p></div>`;
+        badge.style.display = 'none';
+        return;
+    }
+    badge.textContent = pending.length;
+    badge.style.display = '';
+
+    // Ordena: vencidas primeiro, depois por data
+    const sorted = [...pending].sort((a, b) => {
+        const da = a.due_date || a.date;
+        const db = b.due_date || b.date;
+        return da.localeCompare(db);
+    });
+    c.innerHTML = sorted.map(billCardHTML).join('');
+    bindCards(c);
+}
+
+function renderPaidList(paid) {
+    const c = document.getElementById('list-paid');
+    if (paid.length === 0) {
+        c.innerHTML = `<div class="empty"><span class="emoji">📭</span><p>Nenhuma conta paga ainda neste mês.</p></div>`;
+        return;
+    }
+    const sorted = [...paid].sort((a, b) => {
+        const da = a.payment_date || a.date;
+        const db = b.payment_date || b.date;
+        return db.localeCompare(da);
+    });
+    c.innerHTML = sorted.map(billCardHTML).join('');
+    bindCards(c);
+}
+
+function renderRecurring(monthTx) {
+    // Todas as recorrentes (qualquer tx marcada como is_recurring) agrupadas por groupKey
+    const recurringGroups = new Map();
+    for (const t of state.allTx) {
+        if (!t.is_recurring) continue;
+        const k = groupKeyOf(t);
+        if (!recurringGroups.has(k)) recurringGroups.set(k, []);
+        recurringGroups.get(k).push(t);
+    }
+
+    // Sugestões: recorrentes que NÃO tem lançamento neste mês
+    const monthKeys = new Set(monthTx.map(groupKeyOf));
+    const suggestions = [];
+    for (const [k, list] of recurringGroups) {
+        if (monthKeys.has(k)) continue;
+        // Pega o último lançamento (mais recente) como base
+        const last = list.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        suggestions.push({ key: k, last });
+    }
+
+    const sBox = document.getElementById('list-recurring-suggestions');
+    const badge = document.getElementById('badge-recurring');
+    if (suggestions.length === 0) {
+        sBox.innerHTML = `<div class="empty" style="padding:24px"><span class="emoji">✅</span><p>Todas as contas recorrentes já estão lançadas neste mês.</p></div>`;
+        badge.style.display = 'none';
+    } else {
+        badge.textContent = suggestions.length;
+        badge.style.display = '';
+        sBox.innerHTML = suggestions.map(s => suggestCardHTML(s)).join('');
+        sBox.querySelectorAll('[data-create-key]').forEach(btn => {
+            btn.addEventListener('click', () => createFromRecurring(btn.dataset.createKey));
+        });
+        sBox.querySelectorAll('[data-skip-key]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.suggest-card').style.display = 'none';
+            });
+        });
+    }
+
+    // Lista de todas as recorrentes (mostra última ocorrência)
+    const allBox = document.getElementById('list-recurring-all');
+    if (recurringGroups.size === 0) {
+        allBox.innerHTML = `<div class="empty" style="padding:24px"><span class="emoji">🔁</span><p>Nenhuma conta marcada como recorrente.<br><small>Abra uma conta e ative o botão "Recorrente".</small></p></div>`;
+        return;
+    }
+    const items = [];
+    for (const [k, list] of recurringGroups) {
+        const last = list.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        items.push(last);
+    }
+    items.sort((a, b) => groupLabelOf(a).localeCompare(groupLabelOf(b)));
+    allBox.innerHTML = items.map(billCardHTML).join('');
+    bindCards(allBox);
+}
+
+function billCardHTML(t) {
+    const st = dueStatus(t);
+    const stClass = st === 'paid' ? 'paid' : (st === 'overdue' ? 'overdue' : 'pending');
+    const due = t.due_date || t.date;
+    const dueLabel = isPaid(t)
+        ? `Pago em ${fmtDate(t.payment_date || t.date)}`
+        : (st === 'overdue' ? `Venceu ${fmtDate(due)}` : (st === 'today' ? 'Vence hoje' : `Vence ${fmtDate(due)}`));
+    const dueClass = st === 'overdue' ? 'overdue' : (st === 'today' ? 'today' : '');
+    const recTag = t.is_recurring ? '<span class="recurring-tag">🔁</span>' : '';
+    const checkIcon = isPaid(t)
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+        : '';
+    return `
+    <div class="bill-card ${stClass}" data-id="${t.id}">
+        <button class="bill-check" data-check="${t.id}" aria-label="${isPaid(t) ? 'Marcar como pendente' : 'Marcar como pago'}">${checkIcon}</button>
+        <div class="bill-info" data-open="${t.id}">
+            <div class="bill-title">${escapeHtml(groupLabelOf(t))} ${recTag}</div>
+            <div class="bill-meta">
+                <span class="bill-due ${dueClass}">📅 ${dueLabel}</span>
+                ${t.category ? `<span>· ${escapeHtml(t.category)}</span>` : ''}
+            </div>
+        </div>
+        <div class="bill-amount" data-open="${t.id}">${fmtMoney(t.amount)}</div>
+    </div>`;
+}
+
+function suggestCardHTML(s) {
+    return `
+    <div class="suggest-card">
+        <div class="suggest-header">
+            <div class="suggest-title">🔁 ${escapeHtml(groupLabelOf(s.last))}</div>
+            <div style="font-weight:700;">${fmtMoney(s.last.amount)}</div>
+        </div>
+        <div class="suggest-sub">Último lançamento em ${fmtDate(s.last.date)} · ${escapeHtml(s.last.category || '')}</div>
+        <div class="suggest-actions">
+            <button class="btn-secondary" data-skip-key="${escapeAttr(s.key)}">Ignorar</button>
+            <button class="btn-primary" data-create-key="${escapeAttr(s.key)}">Lançar este mês</button>
+        </div>
+    </div>`;
+}
+
+function bindCards(container) {
+    container.querySelectorAll('[data-check]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePaid(Number(el.dataset.check));
+        });
+    });
+    container.querySelectorAll('[data-open]').forEach(el => {
+        el.addEventListener('click', () => openDetail(Number(el.dataset.open)));
+    });
+}
+
+// ====== Toggle paid ======
+async function togglePaid(id) {
+    const t = state.allTx.find(x => x.id === id);
+    if (!t) return;
+    const willPay = !isPaid(t);
+    const update = {
+        status: willPay ? 'paid' : 'pending',
+        payment_date: willPay ? todayISO() : null
+    };
+    const prev = { status: t.status, payment_date: t.payment_date };
+    // optimista
+    t.status = update.status;
+    t.payment_date = update.payment_date;
+    render();
+    if (state.currentGroupKey) renderModalHistory();
+
+    const { error } = await supabaseClient.from('transactions').update(update).eq('id', id);
+    if (error) {
+        t.status = prev.status;
+        t.payment_date = prev.payment_date;
+        render();
+        showToast('Erro ao atualizar', 'error');
+        console.error(error);
+    } else {
+        showToast(willPay ? '✓ Marcada como paga' : 'Marcada como pendente', 'success');
+    }
+}
+
+// ====== Toggle recurring (em todas tx do grupo) ======
+async function onRecurringToggle(e) {
+    const key = state.currentGroupKey;
+    if (!key) return;
+    const checked = e.target.checked;
+    const group = state.allTx.filter(t => groupKeyOf(t) === key);
+    const ids = group.map(t => t.id);
+    if (ids.length === 0) return;
+
+    // optimista
+    group.forEach(t => t.is_recurring = checked);
+    render();
+
+    const { error } = await supabaseClient
+        .from('transactions')
+        .update({ is_recurring: checked })
+        .in('id', ids);
+    if (error) {
+        group.forEach(t => t.is_recurring = !checked);
+        e.target.checked = !checked;
+        render();
+        showToast('Erro ao atualizar recorrência', 'error');
+        console.error(error);
+    } else {
+        showToast(checked ? '🔁 Marcada como recorrente' : 'Recorrência removida', 'success');
+    }
+}
+
+// ====== Criar a partir de recorrente ======
+async function createFromRecurring(key) {
+    const group = state.allTx.filter(t => groupKeyOf(t) === key);
+    if (group.length === 0) return;
+    const last = group.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+
+    // Calcula data de vencimento sugerida no mês visualizado
+    let day = last.recurring_day;
+    if (!day) {
+        const ref = last.due_date || last.date;
+        day = ref ? new Date(ref + 'T00:00:00').getDate() : 10;
+    }
+    const lastDayInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+    day = Math.min(day, lastDayInMonth);
+    const dueISO = `${state.viewYear}-${String(state.viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    const payload = {
+        user_id: state.user.id,
+        family_id: state.familyId,
+        type: 'expense',
+        description: last.description,
+        amount: last.amount,
+        category: last.category,
+        date: dueISO,
+        due_date: dueISO,
+        payment_method: last.payment_method,
+        supplier: last.supplier,
+        status: 'pending',
+        is_recurring: true,
+        affects_balance: last.affects_balance !== false
+    };
+
+    const { data, error } = await supabaseClient
+        .from('transactions')
+        .insert(payload)
+        .select()
+        .single();
+    if (error) {
+        console.error(error);
+        showToast('Erro ao lançar', 'error');
+        return;
+    }
+    state.allTx.unshift(data);
+    showToast('✓ Conta lançada', 'success');
+    render();
+}
+
+// ====== Modal detalhe ======
+function openDetail(id) {
+    const t = state.allTx.find(x => x.id === id);
+    if (!t) return;
+    const key = groupKeyOf(t);
+    state.currentGroupKey = key;
+
+    const group = state.allTx.filter(x => groupKeyOf(x) === key);
+    const label = groupLabelOf(t);
+
+    document.getElementById('modal-title').textContent = label;
+    const sub = [];
+    if (t.supplier && t.description && t.supplier.trim() !== t.description.trim()) sub.push(`<span>📝 ${escapeHtml(t.description)}</span>`);
+    if (t.category) sub.push(`<span>🏷️ ${escapeHtml(t.category)}</span>`);
+    if (t.payment_method) sub.push(`<span>💳 ${escapeHtml(t.payment_method)}</span>`);
+    document.getElementById('modal-sub').innerHTML = sub.join('');
+
+    // Estatísticas
+    const amounts = group.map(g => Number(g.amount || 0));
+    const avg = amounts.length ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+    const lastTx = group.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    document.getElementById('modal-stat-count').textContent = group.length;
+    document.getElementById('modal-stat-avg').textContent = fmtMoneyShort(avg);
+    document.getElementById('modal-stat-last').textContent = fmtMoneyShort(lastTx ? lastTx.amount : 0);
+
+    // Switch recorrente
+    const isRec = group.some(g => g.is_recurring);
+    document.getElementById('modal-recurring-switch').checked = isRec;
+
+    renderModalHistory();
+
+    document.getElementById('modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    state.currentGroupKey = null;
+}
+
+function renderModalHistory() {
+    const key = state.currentGroupKey;
+    if (!key) return;
+    const group = state.allTx.filter(x => groupKeyOf(x) === key);
+
+    // Mapa "YYYY-MM" -> transação
+    const map = new Map();
+    for (const t of group) {
+        const { y, m } = txMonth(t);
+        const k = `${y}-${String(m).padStart(2, '0')}`;
+        // Se já tem (raro: 2 contas mesmo mês), mantém a com maior amount
+        if (!map.has(k) || Number(map.get(k).amount) < Number(t.amount)) map.set(k, t);
+    }
+
+    // Constrói últimos 12 meses (a partir do mês atual visualizado para trás) + 1 à frente
+    const months = [];
+    for (let i = 1; i >= -11; i--) {
+        let m = state.viewMonth + i;
+        let y = state.viewYear;
+        while (m < 0) { m += 12; y -= 1; }
+        while (m > 11) { m -= 12; y += 1; }
+        months.push({ y, m });
+    }
+
+    const todayY = new Date().getFullYear();
+    const todayM = new Date().getMonth();
+
+    const html = months.map(({ y, m }) => {
+        const k = `${y}-${String(m).padStart(2, '0')}`;
+        const t = map.get(k);
+        const monthShort = new Date(y, m, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+
+        if (!t) {
+            const isFuture = (y > todayY) || (y === todayY && m > todayM);
+            return `
+            <div class="history-row missing">
+                <div class="history-month">${monthShort}<small>${y}</small></div>
+                <div class="history-info">
+                    <strong>—</strong>
+                    <span class="history-status missing">${isFuture ? 'Aguardando' : 'Sem lançamento'}</span>
+                </div>
+            </div>`;
+        }
+
+        const st = dueStatus(t);
+        const stClass = st === 'paid' ? 'paid' : (st === 'overdue' ? 'overdue' : 'pending');
+        const stLabel = st === 'paid'
+            ? `Pago ${fmtDate(t.payment_date || t.date)}`
+            : (st === 'overdue' ? `Vencida ${fmtDate(t.due_date || t.date)}` : `Vence ${fmtDate(t.due_date || t.date)}`);
+
+        const btn = isPaid(t)
+            ? `<button class="pay-btn unpay" data-toggle="${t.id}">Desfazer</button>`
+            : `<button class="pay-btn" data-toggle="${t.id}">Marcar pago</button>`;
+
+        return `
+        <div class="history-row ${stClass}">
+            <div class="history-month">${monthShort}<small>${y}</small></div>
+            <div class="history-info">
+                <strong>${fmtMoney(t.amount)}</strong>
+                <span class="history-status ${stClass}">${stLabel}</span>
+            </div>
+            <div class="history-action">${btn}</div>
+        </div>`;
+    }).join('');
+
+    const box = document.getElementById('modal-history');
+    box.innerHTML = html;
+    box.querySelectorAll('[data-toggle]').forEach(b => {
+        b.addEventListener('click', () => togglePaid(Number(b.dataset.toggle)));
+    });
+}
+
+// ====== util ======
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+</script>
+</body>
+</html>

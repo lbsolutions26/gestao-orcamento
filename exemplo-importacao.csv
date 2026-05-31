@@ -1,0 +1,13 @@
+Categoria,Descrição,Data Vencimento,Valor,Situação,Data Pagamento,Forma Pagamento,Tipo,Observação
+Moradia,Luz Apto Cachoeirinha,18/08/2025,-R$ 298.87,PAGO,01/10/2025,Conta Corrente,Saída,Energia atrasada de agosto
+Moradia,Condomínio Santa Maria B3 102,05/09/2025,-R$ 411.24,PAGO,01/10/2025,Conta Corrente,Saída,
+Livre,Cartão de Crédito,01/01/2026,-R$ 146.14,PAGO,01/01/2026,Conta Corrente,Saída,Pagamento fatura dezembro
+Moradia,Condomínio Santa Maria H3 105,05/12/2025,-R$ 398.89,PAGO,09/12/2025,Conta Corrente,Saída,
+Livre,Cartão de Crédito,01/01/2026,-R$ 695.76,PAGO,01/01/2026,Conta Corrente,Saída,Pagamento fatura dezembro
+Alimentação,Mercado Atacadão,15/08/2025,-R$ 350.00,NÃO PAGO,,Cartão de Crédito,Saída,Compra parcelada
+Alimentação,Padaria Central,10/08/2025,-R$ 45.80,PAGO,10/08/2025,Dinheiro,Saída,
+Transporte,Gasolina Posto Shell,12/08/2025,-R$ 250.00,NÃO PAGO,,Cartão de Crédito,Saída,
+Salário,Salário Agosto,05/08/2025,R$ 5000.00,PAGO,05/08/2025,Transferência,Entrada,
+Freelance,Projeto Cliente XYZ,20/08/2025,R$ 1500.00,NÃO PAGO,,PIX,Entrada,Aguardando pagamento
+Saúde,Farmácia Drogaria,08/08/2025,-R$ 120.50,PAGO,08/08/2025,Cartão de Crédito,Saída,Remédios
+Educação,Curso Online,01/08/2025,-R$ 299.00,PAGO,01/08/2025,Cartão de Crédito,Saída,Mensalidade
