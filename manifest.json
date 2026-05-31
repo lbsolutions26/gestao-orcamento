@@ -1,8 +1,8 @@
 {
-  "name": "Gestão de Orçamento",
-  "short_name": "Orçamento",
-  "description": "Gerencie seu orçamento pessoal de forma fácil e rápida",
-  "start_url": "/",
+  "name": "Diário de Orçamento",
+  "short_name": "Diário",
+  "description": "Controle diário de contas e despesas pelo celular",
+  "start_url": "/diario.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#6366f1",
