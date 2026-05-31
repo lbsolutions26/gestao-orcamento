@@ -525,41 +525,6 @@ body {
     left: 0;
 }
 
-/* Menu fixo na esquerda em desktop */
-@media (min-width: 1024px) {
-    .sidebar {
-        left: 0 !important;
-        box-shadow: none;
-        border-right: 1px solid var(--gray-200);
-        transition: none;
-    }
-    
-    .sidebar-header {
-        display: none !important;
-    }
-    
-    .sidebar-close {
-        display: none !important;
-    }
-    
-    .sidebar-overlay {
-        display: none !important;
-        pointer-events: none;
-    }
-    
-    .main-content {
-        margin-left: 300px;
-    }
-    
-    .header {
-        margin-left: 300px;
-    }
-    
-    .menu-toggle {
-        display: none !important;
-    }
-}
-
 .sidebar-header {
     display: flex;
     justify-content: space-between;

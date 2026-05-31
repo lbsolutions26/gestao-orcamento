@@ -414,6 +414,11 @@ function setupEventListeners() {
         });
     });
 
+    // Fecha sidebar ao clicar em links externos (Pagamentos, Diário, etc)
+    document.querySelectorAll('.sidebar a.menu-item').forEach(link => {
+        link.addEventListener('click', closeSidebar);
+    });
+
     if (app.financialQuestionForm) {
         app.financialQuestionForm.addEventListener('submit', handleFinancialQuestionSubmit);
     }
@@ -1513,9 +1518,6 @@ function openSidebar() {
 }
 
 function closeSidebar() {
-    // Não fecha em desktop (tela >= 1024px)
-    if (window.innerWidth >= 1024) return;
-    
     app.sidebar.classList.remove('open');
     app.sidebarOverlay.classList.remove('active');
     document.body.style.overflow = ''; // Restaura scroll
