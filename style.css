@@ -528,9 +528,10 @@ body {
 /* Menu fixo na esquerda em desktop */
 @media (min-width: 1024px) {
     .sidebar {
-        left: 0;
+        left: 0 !important;
         box-shadow: none;
         border-right: 1px solid var(--gray-200);
+        transition: none;
     }
     
     .sidebar-header {
@@ -538,7 +539,8 @@ body {
     }
     
     .sidebar-overlay {
-        display: none;
+        display: none !important;
+        pointer-events: none;
     }
     
     .main-content {
@@ -547,6 +549,10 @@ body {
     
     .header {
         margin-left: 300px;
+    }
+    
+    .menu-toggle {
+        display: none;
     }
 }
 
