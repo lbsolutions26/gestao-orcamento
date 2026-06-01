@@ -1585,6 +1585,22 @@ function applyScreenFromHash() {
     if (validScreens.includes(hashScreen)) {
         navigateToScreen(hashScreen);
     }
+
+    // Abrir modal de novo lan\u00e7amento via ?add=expense|income
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const addType = params.get('add');
+        if (addType === 'expense' || addType === 'income') {
+            setTimeout(() => {
+                try { openTransactionModal(addType); } catch (e) { console.warn(e); }
+            }, 250);
+            // Limpa o par\u00e2metro para n\u00e3o reabrir no F5
+            params.delete('add');
+            const newSearch = params.toString();
+            const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+        }
+    } catch (e) { /* ignora */ }
 }
 
 // ==========================================

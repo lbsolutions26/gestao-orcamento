@@ -59,9 +59,40 @@
             overscroll-behavior-y: contain;
         }
 
-        body { padding-bottom: env(safe-area-inset-bottom); }
+        body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
 
         .hidden { display: none !important; }
+
+        /* ===== Action bar inferior ===== */
+        .action-bar {
+            position: fixed; left: 0; right: 0;
+            bottom: 0;
+            background: white;
+            border-top: 1px solid var(--border);
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            display: flex; gap: 10px;
+            z-index: 80;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+        }
+        .action-bar button {
+            flex: 1;
+            border: none;
+            padding: 14px 12px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: transform 0.05s;
+        }
+        .action-bar button:active { transform: scale(0.97); }
+        .action-bar .btn-expense {
+            background: var(--danger); color: white;
+        }
+        .action-bar .btn-income {
+            background: var(--success); color: white;
+        }
+        .action-bar svg { width: 18px; height: 18px; }
 
         /* ===== Loading ===== */
         .loading-screen {
@@ -703,6 +734,18 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- Barra de ações inferior -->
+<div id="action-bar" class="action-bar hidden">
+    <button class="btn-expense" id="btn-add-expense">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Despesa
+    </button>
+    <button class="btn-income" id="btn-add-income">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Receita
+    </button>
+</div>
+
 <!-- Drawer (menu lateral) -->
 <div id="drawer-overlay" class="drawer-overlay"></div>
 <aside id="drawer" class="drawer" aria-hidden="true">
@@ -722,6 +765,10 @@
         <li><a href="pagamentos.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
             <span>Pagamentos</span>
+        </a></li>
+        <li><a href="cadastros.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>
+            <span>Cadastros</span>
         </a></li>
         <li><a href="index.html?stay#graficos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
@@ -783,6 +830,7 @@ async function checkAuth() {
         await loadAll();
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('app').classList.remove('hidden');
+        document.getElementById('action-bar').classList.remove('hidden');
     } catch (e) {
         console.error(e);
         window.location.replace('index.html?stay');
@@ -842,6 +890,14 @@ function setupEvents() {
     document.getElementById('menu-toggle').addEventListener('click', openDrawer);
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+    // Barra de ações inferior → redireciona para dashboard abrindo o modal
+    document.getElementById('btn-add-expense').addEventListener('click', () => {
+        window.location.href = 'index.html?stay&add=expense';
+    });
+    document.getElementById('btn-add-income').addEventListener('click', () => {
+        window.location.href = 'index.html?stay&add=income';
+    });
 }
 
 function openDrawer() {

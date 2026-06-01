@@ -32,3 +32,4 @@ Thumbs.db
 # Configuração local
 config.local.js
 .vercel
+.env*.local

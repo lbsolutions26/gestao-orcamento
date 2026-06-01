@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
+    <title>Cadastros · Gestão de Orçamento</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                regs.forEach(r => r.unregister());
+            }).catch(() => {});
+            if (window.caches) {
+                caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #eef2ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            font-size: 15px;
+            min-height: 100vh;
+        }
+        body { padding-bottom: env(safe-area-inset-bottom); }
+        .hidden { display: none !important; }
+
+        .loading-screen {
+            position: fixed; inset: 0; background: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; gap: 1rem;
+        }
+        .loader {
+            width: 44px; height: 44px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .topbar {
+            position: sticky; top: 0; z-index: 50;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: calc(env(safe-area-inset-top) + 14px) 16px 16px;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+        }
+        .topbar-row {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .topbar-title {
+            font-size: 1.05rem; font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .icon-btn {
+            background: rgba(255,255,255,0.18);
+            border: none; color: white;
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .icon-btn svg { width: 20px; height: 20px; }
+
+        .tabs {
+            display: flex; gap: 6px;
+            background: white;
+            padding: 8px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 64px; z-index: 40;
+        }
+        .tab {
+            flex-shrink: 0;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem; font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        main { padding: 14px 12px 100px; }
+
+        .add-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 0.95rem; font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+        }
+        .add-btn svg { width: 18px; height: 18px; }
+
+        .item-list {
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: var(--shadow);
+        }
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-weight: 600; font-size: 0.95rem; word-break: break-word; }
+        .item-meta { font-size: 0.8rem; color: var(--text-light); margin-top: 2px; }
+        .item-actions {
+            display: flex; gap: 6px;
+        }
+        .item-actions button {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .item-actions button svg { width: 16px; height: 16px; stroke: var(--text-light); }
+        .item-actions .btn-del svg { stroke: var(--danger); }
+
+        .empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+        .empty svg { width: 56px; height: 56px; stroke: var(--text-light); margin-bottom: 12px; opacity: 0.45; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: flex-end; justify-content: center;
+            z-index: 200;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 18px 18px 0 0;
+            padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.25s ease;
+        }
+        .modal-overlay.open .modal { transform: translateY(0); }
+        .modal-title {
+            font-size: 1.05rem; font-weight: 600; margin-bottom: 14px;
+        }
+        .modal label {
+            display: block;
+            font-size: 0.8rem; color: var(--text-light);
+            margin-bottom: 4px; margin-top: 10px;
+        }
+        .modal input, .modal select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+        }
+        .modal-actions {
+            display: flex; gap: 8px;
+            margin-top: 18px;
+        }
+        .modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .btn-cancel { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; }
+        .btn-save { background: var(--primary); color: white; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 100px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--text);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 300;
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { background: var(--danger); }
+        .toast.success { background: var(--success); }
+
+        /* Drawer */
+        .drawer-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s; z-index: 100;
+        }
+        .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+        .drawer {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 78%; max-width: 300px;
+            background: white;
+            box-shadow: 4px 0 18px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            z-index: 110;
+            display: flex; flex-direction: column;
+        }
+        .drawer.open { transform: translateX(0); }
+        .drawer-header {
+            padding: calc(env(safe-area-inset-top) + 18px) 18px 14px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .drawer-header h2 { font-size: 1.1rem; font-weight: 600; }
+        .drawer-close {
+            background: rgba(255,255,255,0.2);
+            border: none; color: white;
+            width: 32px; height: 32px;
+            border-radius: 8px; cursor: pointer; font-size: 1.1rem;
+        }
+        .drawer-menu {
+            list-style: none; padding: 8px 0; margin: 0;
+            overflow-y: auto; flex: 1;
+        }
+        .drawer-menu a {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 18px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .drawer-menu a.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .drawer-menu a svg { width: 20px; height: 20px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+    <div class="loader"></div>
+    <p>Carregando...</p>
+</div>
+
+<div id="app" class="hidden">
+    <header class="topbar">
+        <div class="topbar-row">
+            <div class="topbar-title">
+                <button id="menu-toggle" class="icon-btn" aria-label="Abrir menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span>📋 Cadastros</span>
+            </div>
+            <button id="logout-btn" class="icon-btn" aria-label="Sair">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+        </div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" data-tab="suppliers">Fornecedores</button>
+        <button class="tab" data-tab="clients">Clientes</button>
+        <button class="tab" data-tab="expense-categories">Categorias (Despesa)</button>
+        <button class="tab" data-tab="income-categories">Categorias (Receita)</button>
+        <button class="tab" data-tab="payments">Pagamentos</button>
+        <button class="tab" data-tab="members">Família</button>
+    </nav>
+
+    <main>
+        <button id="add-btn" class="add-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span id="add-btn-label">Adicionar</span>
+        </button>
+        <div id="list" class="item-list"></div>
+    </main>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-title" id="modal-title">Novo</div>
+        <div id="modal-fields"></div>
+        <div class="modal-actions">
+            <button class="btn-cancel" id="btn-cancel">Cancelar</button>
+            <button class="btn-save" id="btn-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- Drawer -->
+<div id="drawer-overlay" class="drawer-overlay"></div>
+<aside id="drawer" class="drawer">
+    <div class="drawer-header">
+        <h2>Menu</h2>
+        <button id="drawer-close" class="drawer-close">✕</button>
+    </div>
+    <ul class="drawer-menu">
+        <li><a href="diario.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            <span>Diário</span>
+        </a></li>
+        <li><a href="index.html?stay">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Dashboard</span>
+        </a></li>
+        <li><a href="pagamentos.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            <span>Pagamentos</span>
+        </a></li>
+        <li><a href="cadastros.html" class="active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>
+            <span>Cadastros</span>
+        </a></li>
+        <li><a href="index.html?stay#graficos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+            <span>Gráficos</span>
+        </a></li>
+        <li><a href="index.html?stay#familia">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            <span>Família</span>
+        </a></li>
+        <li><a href="index.html?stay#cadastro">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Meu Cadastro</span>
+        </a></li>
+    </ul>
+</aside>
+
+<script>
+const SUPABASE_URL = 'https://uftjltanaiqvdatekroc.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_GoZlDUtla1khO1uUnQ3nRA_z6u1f-Xa';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Configuração das abas
+const TABS = {
+    'suppliers':          { label: 'fornecedor',  table: 'contacts',        filter: { kind: 'supplier' },   addLabel: 'Adicionar fornecedor',          fields: [{ key: 'name', label: 'Nome', required: true }] },
+    'clients':            { label: 'cliente',     table: 'contacts',        filter: { kind: 'client' },     addLabel: 'Adicionar cliente',             fields: [{ key: 'name', label: 'Nome', required: true }] },
+    'expense-categories': { label: 'categoria',   table: 'categories',      filter: { type: 'expense' },    addLabel: 'Adicionar categoria de despesa', fields: [{ key: 'name', label: 'Nome', required: true }] },
+    'income-categories':  { label: 'categoria',   table: 'categories',      filter: { type: 'income' },     addLabel: 'Adicionar categoria de receita', fields: [{ key: 'name', label: 'Nome', required: true }] },
+    'payments':           { label: 'forma de pagamento', table: 'payment_methods', filter: {},              addLabel: 'Adicionar forma de pagamento',
+        fields: [
+            { key: 'name', label: 'Nome', required: true },
+            { key: 'type', label: 'Tipo', type: 'select', options: [
+                { value: '', label: '—' },
+                { value: 'card', label: 'Cartão de crédito' },
+                { value: 'debit', label: 'Cartão de débito' },
+                { value: 'pix', label: 'Pix' },
+                { value: 'cash', label: 'Dinheiro' },
+                { value: 'transfer', label: 'Transferência' },
+                { value: 'boleto', label: 'Boleto' }
+            ]}
+        ] },
+    'members':            { label: 'membro', table: 'family_members', filter: {}, readOnly: true, addLabel: 'Convidar pelo Dashboard', fields: [] }
+};
+
+const state = {
+    user: null,
+    familyId: null,
+    activeTab: 'suppliers',
+    items: [],
+    editing: null
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    setupEvents();
+    await checkAuth();
+});
+
+async function checkAuth() {
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+            window.location.replace('index.html?stay');
+            return;
+        }
+        state.user = session.user;
+        await loadFamily();
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        await loadTab();
+    } catch (e) {
+        console.error(e);
+        window.location.replace('index.html?stay');
+    }
+}
+
+async function loadFamily() {
+    const { data } = await sb.from('family_members').select('family_id, role').eq('user_id', state.user.id);
+    if (!data || !data.length) return;
+    const member = data.find(f => f.role === 'member');
+    state.familyId = (member || data[0]).family_id;
+}
+
+function setupEvents() {
+    document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+    document.getElementById('add-btn').addEventListener('click', () => openModal());
+    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    document.getElementById('btn-save').addEventListener('click', saveItem);
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+        if (e.target.id === 'modal-overlay') closeModal();
+    });
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+        document.getElementById('drawer').classList.add('open');
+        document.getElementById('drawer-overlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    });
+    const closeDrawer = () => {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawer-overlay').classList.remove('open');
+        document.body.style.overflow = '';
+    };
+    document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+    document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await sb.auth.signOut();
+        window.location.replace('index.html?stay');
+    });
+}
+
+function switchTab(tab) {
+    state.activeTab = tab;
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    const cfg = TABS[tab];
+    document.getElementById('add-btn-label').textContent = cfg.addLabel;
+    document.getElementById('add-btn').style.display = cfg.readOnly ? 'none' : '';
+    loadTab();
+}
+
+async function loadTab() {
+    const cfg = TABS[state.activeTab];
+    const list = document.getElementById('list');
+    list.innerHTML = '<div class="empty">Carregando...</div>';
+
+    let q = sb.from(cfg.table).select('*').eq('family_id', state.familyId);
+    for (const [k, v] of Object.entries(cfg.filter)) q = q.eq(k, v);
+    q = q.order(cfg.table === 'family_members' ? 'role' : 'name', { ascending: true });
+
+    const { data, error } = await q;
+    if (error) {
+        console.error(error);
+        list.innerHTML = `<div class="empty">Erro: ${error.message}<br><small>Execute create-cadastros-tables.sql no Supabase</small></div>`;
+        return;
+    }
+    state.items = data || [];
+    render();
+}
+
+function render() {
+    const cfg = TABS[state.activeTab];
+    const list = document.getElementById('list');
+    if (!state.items.length) {
+        list.innerHTML = `<div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <div>Nenhum ${cfg.label} cadastrado</div>
+        </div>`;
+        return;
+    }
+    list.innerHTML = state.items.map(item => {
+        const isMember = cfg.table === 'family_members';
+        const meta = isMember ? (item.role || '') : (item.type || '');
+        return `<div class="item">
+            <div class="item-info">
+                <div class="item-name">${escapeHtml(item.name || item.user_id || '—')}</div>
+                ${meta ? `<div class="item-meta">${escapeHtml(meta)}</div>` : ''}
+            </div>
+            ${cfg.readOnly ? '' : `
+            <div class="item-actions">
+                <button onclick="openModal('${item.id}')" title="Editar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+                <button class="btn-del" onclick="deleteItem('${item.id}')" title="Excluir">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path></svg>
+                </button>
+            </div>`}
+        </div>`;
+    }).join('');
+}
+
+function openModal(id) {
+    const cfg = TABS[state.activeTab];
+    state.editing = id ? state.items.find(x => x.id === id) : null;
+    document.getElementById('modal-title').textContent = (state.editing ? 'Editar ' : 'Novo ') + cfg.label;
+
+    const fieldsHtml = cfg.fields.map(f => {
+        const val = state.editing ? (state.editing[f.key] || '') : '';
+        if (f.type === 'select') {
+            return `<label>${f.label}</label>
+                <select data-field="${f.key}">
+                    ${f.options.map(o => `<option value="${o.value}" ${o.value === val ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>`;
+        }
+        return `<label>${f.label}${f.required ? ' *' : ''}</label>
+            <input data-field="${f.key}" value="${escapeHtml(val)}" ${f.required ? 'required' : ''}>`;
+    }).join('');
+    document.getElementById('modal-fields').innerHTML = fieldsHtml;
+    document.getElementById('modal-overlay').classList.add('open');
+    setTimeout(() => {
+        const first = document.querySelector('#modal-fields input, #modal-fields select');
+        if (first) first.focus();
+    }, 100);
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    state.editing = null;
+}
+
+async function saveItem() {
+    const cfg = TABS[state.activeTab];
+    const payload = { family_id: state.familyId, ...cfg.filter };
+    let valid = true;
+    cfg.fields.forEach(f => {
+        const el = document.querySelector(`[data-field="${f.key}"]`);
+        const v = (el?.value || '').trim();
+        if (f.required && !v) { valid = false; }
+        payload[f.key] = v || null;
+    });
+    if (!valid) { showToast('Preencha os campos obrigatórios', 'error'); return; }
+
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    let res;
+    if (state.editing) {
+        res = await sb.from(cfg.table).update(payload).eq('id', state.editing.id);
+    } else {
+        res = await sb.from(cfg.table).insert([payload]);
+    }
+    btn.disabled = false; btn.textContent = 'Salvar';
+
+    if (res.error) {
+        showToast('Erro: ' + res.error.message, 'error');
+        return;
+    }
+    showToast(state.editing ? 'Atualizado!' : 'Cadastrado!', 'success');
+    closeModal();
+    loadTab();
+}
+
+async function deleteItem(id) {
+    const cfg = TABS[state.activeTab];
+    const item = state.items.find(x => x.id === id);
+    if (!confirm(`Excluir "${item.name}"?`)) return;
+    const { error } = await sb.from(cfg.table).delete().eq('id', id);
+    if (error) { showToast('Erro: ' + error.message, 'error'); return; }
+    showToast('Excluído', 'success');
+    loadTab();
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+window.openModal = openModal;
+window.deleteItem = deleteItem;
+</script>
+
+</body>
+</html>
