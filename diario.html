@@ -221,9 +221,77 @@
         .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
         .summary-card.income { background: rgba(209, 250, 229, 0.25); }
         .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
+        .summary-card.balance .val { font-size: 1.5rem !important; font-weight: 800; }
         .summary-card.clickable { cursor: pointer; transition: transform .12s, background .2s; }
         .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .summary-card .sub { font-size: 0.65rem; opacity: 0.8; margin-top: 2px; white-space: nowrap; }
+
+        /* ===== Budgets Section ===== */
+        .budgets-section {
+            background: white;
+            margin: 12px 16px;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .budgets-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .budgets-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .budget-toggle {
+            font-size: 0.75rem;
+            color: var(--primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-weight: 600;
+        }
+        .budget-item {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .budget-item:last-child { border-bottom: none; }
+        .budget-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .budget-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .budget-amounts {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .budget-bar {
+            height: 6px;
+            background: var(--bg);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .budget-progress {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s, background 0.3s;
+            border-radius: 10px;
+        }
+        .budget-progress.warning { background: var(--warning); }
+        .budget-progress.danger { background: var(--danger); }
 
         /* ===== Chart modal ===== */
         .chart-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
@@ -821,6 +889,15 @@
         </div>
     </header>
 
+    <!-- Seção de Budgets -->
+    <div class="budgets-section" id="budgets-section" style="display: none;">
+        <div class="budgets-header">
+            <div class="budgets-title">💰 Orçamentos do Mês</div>
+            <button class="budget-toggle" id="budget-collapse">▼ Ocultar</button>
+        </div>
+        <div id="budgets-list"></div>
+    </div>
+
     <nav class="tabs">
         <button class="tab active" data-tab="month">A Pagar/Receber <span class="badge" id="badge-month" style="display:none;">0</span></button>
         <button class="tab" data-tab="recurring">Recorrentes <span class="badge" id="badge-recurring" style="display:none;">0</span></button>
@@ -948,6 +1025,28 @@
         </header>
         <div class="modal-body">
             <div id="drill-body"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: editar budget -->
+<div id="budget-modal-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width: 400px;">
+        <header class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="budget-modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="budget-modal-title">Editar Orçamento</div>
+            <div class="modal-sub" id="budget-modal-sub"></div>
+        </header>
+        <div class="modal-body" style="padding: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Meta de Gasto (R$)</label>
+            <input type="number" id="budget-amount-input" step="0.01" min="0" placeholder="0,00" 
+                   style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
+            
+            <div style="display: flex; gap: 8px;">
+                <button id="budget-delete-btn" style="flex: 1; padding: 12px; border: 1px solid var(--danger); background: white; color: var(--danger); border-radius: 8px; font-weight: 600; cursor: pointer;">🗑️ Remover</button>
+                <button id="budget-save-btn" style="flex: 1; padding: 12px; border: none; background: var(--primary); color: white; border-radius: 8px; font-weight: 600; cursor: pointer;">💾 Salvar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1094,10 +1193,12 @@ const state = {
     familyId: null,
     familyUsers: {},      // map: user_id -> { name, email }
     allTx: [],            // todas as despesas (todos os meses)
+    budgets: [],          // budgets do mês atual
     viewYear: null,
     viewMonth: null,      // 0-11
     activeTab: 'month',
     currentGroupKey: null, // identifica a "conta" aberta no modal
+    budgetsVisible: true,  // se seção de budgets está visível
     filters: {            // filtros por aba
         month:     { type: 'all', search: '' },
         recurring: { type: 'all', search: '' },
@@ -1181,7 +1282,199 @@ async function loadAll() {
         return;
     }
     state.allTx = data || [];
+    await loadBudgets();
     render();
+}
+
+// ====== Budgets ======
+async function loadBudgets() {
+    if (!state.familyId) return;
+    const { data, error } = await supabaseClient
+        .from('category_budgets')
+        .select('*')
+        .eq('family_id', state.familyId)
+        .eq('year', state.viewYear)
+        .eq('month', state.viewMonth + 1)
+        .eq('type', 'expense');
+    if (error) {
+        console.error('Erro ao carregar budgets:', error);
+        state.budgets = [];
+        return;
+    }
+    state.budgets = data || [];
+}
+
+function renderBudgets() {
+    const section = document.getElementById('budgets-section');
+    const list = document.getElementById('budgets-list');
+    
+    // Calcular gastos por categoria no mês atual
+    const monthTx = txOfMonth(state.allTx, state.viewYear, state.viewMonth);
+    const expenseTx = monthTx.filter(t => t.type === 'expense' && t.affects_balance !== false);
+    
+    const spentByCategory = {};
+    expenseTx.forEach(t => {
+        const cat = t.category || 'Sem categoria';
+        spentByCategory[cat] = (spentByCategory[cat] || 0) + parseFloat(t.amount || 0);
+    });
+    
+    // Categorias principais (que têm budget OU têm gasto > 50)
+    const allCategories = new Set([
+        ...state.budgets.map(b => b.category),
+        ...Object.keys(spentByCategory).filter(cat => spentByCategory[cat] > 50)
+    ]);
+    
+    if (allCategories.size === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = state.budgetsVisible ? 'block' : 'none';
+    
+    const items = Array.from(allCategories).map(category => {
+        const budget = state.budgets.find(b => b.category === category);
+        const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
+        const spent = spentByCategory[category] || 0;
+        const remaining = budgetAmount - spent;
+        const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+        
+        let progressClass = '';
+        if (percentage >= 100) progressClass = 'danger';
+        else if (percentage >= 80) progressClass = 'warning';
+        
+        const hasБudget = budgetAmount > 0;
+        
+        return {
+            category,
+            budgetAmount,
+            spent,
+            remaining,
+            percentage: Math.min(percentage, 100),
+            progressClass,
+            hasBudget: hasБudget
+        };
+    }).sort((a, b) => b.spent - a.spent);
+    
+    list.innerHTML = items.map(item => `
+        <div class="budget-item">
+            <div class="budget-top">
+                <div class="budget-name" onclick="openBudgetModal('${escapeAttr(item.category)}')">${escapeHtml(item.category)}</div>
+                <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
+                    ${fmtMoney(item.spent)}${item.hasBudget ? ` / ${fmtMoney(item.budgetAmount)}` : ` <span style="opacity: 0.6;">(sem meta)</span>`}
+                </div>
+            </div>
+            ${item.hasBudget ? `
+                <div class="budget-bar">
+                    <div class="budget-progress ${item.progressClass}" style="width: ${item.percentage}%"></div>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+let currentBudgetCategory = null;
+
+function openBudgetModal(category) {
+    currentBudgetCategory = category;
+    const budget = state.budgets.find(b => b.category === category);
+    const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
+    
+    document.getElementById('budget-modal-title').textContent = `💰 ${category}`;
+    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
+    document.getElementById('budget-amount-input').value = budgetAmount || '';
+    
+    document.getElementById('budget-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBudgetModal() {
+    document.getElementById('budget-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    currentBudgetCategory = null;
+}
+
+async function saveBudget() {
+    if (!currentBudgetCategory) return;
+    
+    const amountInput = document.getElementById('budget-amount-input');
+    const amount = parseFloat(amountInput.value);
+    
+    if (!amount || amount <= 0) {
+        showToast('Informe um valor válido', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('budget-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+    
+    try {
+        const existing = state.budgets.find(b => b.category === currentBudgetCategory);
+        
+        if (existing) {
+            // Atualizar
+            const { error } = await supabaseClient
+                .from('category_budgets')
+                .update({ budget_amount: amount, updated_at: new Date().toISOString() })
+                .eq('id', existing.id);
+            
+            if (error) throw error;
+        } else {
+            // Criar
+            const { error } = await supabaseClient
+                .from('category_budgets')
+                .insert([{
+                    family_id: state.familyId,
+                    category: currentBudgetCategory,
+                    type: 'expense',
+                    budget_amount: amount,
+                    month: state.viewMonth + 1,
+                    year: state.viewYear
+                }]);
+            
+            if (error) throw error;
+        }
+        
+        showToast('Orçamento salvo!', 'success');
+        await loadBudgets();
+        render();
+        closeBudgetModal();
+    } catch (error) {
+        console.error(error);
+        showToast('Erro: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar';
+    }
+}
+
+async function deleteBudget() {
+    if (!currentBudgetCategory) return;
+    
+    const existing = state.budgets.find(b => b.category === currentBudgetCategory);
+    if (!existing) {
+        showToast('Nenhum orçamento para remover', 'error');
+        return;
+    }
+    
+    if (!confirm(`Remover orçamento de "${currentBudgetCategory}"?`)) return;
+    
+    try {
+        const { error } = await supabaseClient
+            .from('category_budgets')
+            .delete()
+            .eq('id', existing.id);
+        
+        if (error) throw error;
+        
+        showToast('Orçamento removido', 'success');
+        await loadBudgets();
+        render();
+        closeBudgetModal();
+    } catch (error) {
+        console.error(error);
+        showToast('Erro: ' + error.message, 'error');
+    }
 }
 
 // ====== Events ======
@@ -1204,6 +1497,22 @@ function setupEvents() {
         if (sel) sel.addEventListener('change', () => { state.filters[tab].type = sel.value; render(); });
         if (inp) inp.addEventListener('input', () => { state.filters[tab].search = inp.value.trim().toLowerCase(); render(); });
     });
+    
+    // Budget events
+    document.getElementById('budget-collapse').addEventListener('click', () => {
+        state.budgetsVisible = !state.budgetsVisible;
+        const section = document.getElementById('budgets-section');
+        const btn = document.getElementById('budget-collapse');
+        section.style.display = state.budgetsVisible ? 'block' : 'none';
+        btn.textContent = state.budgetsVisible ? '▼ Ocultar' : '▶ Mostrar';
+    });
+    
+    document.getElementById('budget-modal-close').addEventListener('click', closeBudgetModal);
+    document.getElementById('budget-modal-overlay').addEventListener('click', e => {
+        if (e.target.id === 'budget-modal-overlay') closeBudgetModal();
+    });
+    document.getElementById('budget-save-btn').addEventListener('click', saveBudget);
+    document.getElementById('budget-delete-btn').addEventListener('click', deleteBudget);
 
     document.getElementById('modal-close').addEventListener('click', closeModal);
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
@@ -1612,13 +1921,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function shiftMonth(delta) {
+async function shiftMonth(delta) {
     let m = state.viewMonth + delta;
     let y = state.viewYear;
     if (m < 0) { m = 11; y -= 1; }
     if (m > 11) { m = 0; y += 1; }
     state.viewMonth = m;
     state.viewYear = y;
+    await loadBudgets();
     render();
 }
 
@@ -1797,6 +2107,7 @@ function render() {
     renderPendingList(pending);
     renderPaidList(paid);
     renderRecurring(monthTx);
+    renderBudgets();
 }
 
 function renderPendingList(pending) {
