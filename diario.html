@@ -893,7 +893,10 @@
     <div class="budgets-section" id="budgets-section" style="display: none;">
         <div class="budgets-header">
             <div class="budgets-title">💰 Orçamentos do Mês</div>
-            <button class="budget-toggle" id="budget-collapse">▼ Ocultar</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="budget-toggle" id="budget-add-new" title="Adicionar orçamento de outra categoria">➕ Novo</button>
+                <button class="budget-toggle" id="budget-collapse">▼ Ocultar</button>
+            </div>
         </div>
         <div id="budgets-list"></div>
     </div>
@@ -1039,6 +1042,12 @@
             <div class="modal-sub" id="budget-modal-sub"></div>
         </header>
         <div class="modal-body" style="padding: 20px;">
+            <div id="budget-category-row" style="display: none; margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Categoria</label>
+                <select id="budget-category-input"
+                        style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                </select>
+            </div>
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">Fornecedor/Cliente (opcional)</label>
             <select id="budget-supplier-input" 
                     style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
@@ -1379,7 +1388,9 @@ function renderBudgets() {
     });
     
     if (items.length === 0) {
-        section.style.display = 'none';
+        section.style.display = 'block';
+        list.style.display = state.budgetsVisible ? 'block' : 'none';
+        list.innerHTML = '<div style="padding: 12px 0; color: var(--text-muted); font-size: 0.9rem; text-align: center;">Nenhum orçamento definido. Clique em <strong>➕ Novo</strong> para criar.</div>';
         return;
     }
     
@@ -1428,6 +1439,9 @@ async function openBudgetModal(category, supplier = null) {
     // Carrega opções se necessário
     if (txOptionsCache.suppliers === null) await loadTxOptions();
     
+    // Esconde seletor de categoria (modo edição: categoria fixa)
+    document.getElementById('budget-category-row').style.display = 'none';
+    
     // Preenche select de fornecedores
     const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
     const uniqueSuppliers = [...new Set(allSuppliers)].sort();
@@ -1441,6 +1455,43 @@ async function openBudgetModal(category, supplier = null) {
     document.getElementById('budget-modal-title').textContent = titleText;
     document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
     document.getElementById('budget-amount-input').value = budgetAmount || '';
+    document.getElementById('budget-delete-btn').style.display = budget ? '' : 'none';
+    
+    document.getElementById('budget-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+async function openNewBudgetModal() {
+    currentBudgetCategory = null;
+    currentBudgetSupplier = null;
+    
+    // Carrega opções se necessário
+    if (txOptionsCache.suppliers === null) await loadTxOptions();
+    
+    // Mostra e preenche seletor de categorias (despesas)
+    const catRow = document.getElementById('budget-category-row');
+    const catSel = document.getElementById('budget-category-input');
+    const cats = (txOptionsCache.categoriesExpense && txOptionsCache.categoriesExpense.length)
+        ? txOptionsCache.categoriesExpense
+        : DEFAULT_CATEGORIES.expense;
+    catSel.innerHTML = '<option value="">Selecione...</option>'
+        + cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtmlTx(c)}</option>`).join('');
+    catSel.value = '';
+    catRow.style.display = 'block';
+    
+    // Preenche select de fornecedores
+    const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
+    const uniqueSuppliers = [...new Set(allSuppliers)].sort();
+    const sel = document.getElementById('budget-supplier-input');
+    sel.innerHTML = '<option value="">Nenhum (geral)</option>'
+        + '<option value="__new__">➕ Cadastrar novo...</option>'
+        + uniqueSuppliers.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
+    sel.value = '';
+    
+    document.getElementById('budget-modal-title').textContent = '💰 Novo Orçamento';
+    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
+    document.getElementById('budget-amount-input').value = '';
+    document.getElementById('budget-delete-btn').style.display = 'none';
     
     document.getElementById('budget-modal-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -1454,7 +1505,16 @@ function closeBudgetModal() {
 }
 
 async function saveBudget() {
-    if (!currentBudgetCategory) return;
+    // Se está em modo "novo", lê categoria do select
+    if (!currentBudgetCategory) {
+        const catSel = document.getElementById('budget-category-input');
+        const chosen = (catSel.value || '').trim();
+        if (!chosen) {
+            showToast('Selecione uma categoria', 'error');
+            return;
+        }
+        currentBudgetCategory = chosen;
+    }
     
     const amountInput = document.getElementById('budget-amount-input');
     const supplierSelect = document.getElementById('budget-supplier-input');
@@ -1588,6 +1648,7 @@ function setupEvents() {
     });
     document.getElementById('budget-save-btn').addEventListener('click', saveBudget);
     document.getElementById('budget-delete-btn').addEventListener('click', deleteBudget);
+    document.getElementById('budget-add-new').addEventListener('click', openNewBudgetModal);
     
     // Event listener para criar novo fornecedor no budget modal
     document.getElementById('budget-supplier-input').addEventListener('change', async (e) => {
