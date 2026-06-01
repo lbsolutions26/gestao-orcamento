@@ -1015,6 +1015,12 @@
             <label>Observações</label>
             <textarea id="tx-notes" placeholder="Opcional"></textarea>
 
+            <label for="tx-payment-code">Código de Barras / PIX (opcional)</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input id="tx-payment-code" type="text" placeholder="Cole aqui o código para pagamento" style="flex: 1;">
+                <button type="button" id="tx-copy-code" style="padding: 10px 16px; border: 1px solid var(--primary); background: var(--primary-light); color: var(--primary-dark); border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap;">📋 Copiar</button>
+            </div>
+
             <label for="tx-attachment">📎 Anexar Boleto/Fatura (opcional)</label>
             <input type="file" id="tx-attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-bottom: 8px;">
             <small style="color: var(--text-muted); display: block; font-size: 0.85rem; margin-bottom: 8px;">Formatos aceitos: PDF, JPG, PNG, WEBP (máx. 5MB)</small>
@@ -1307,6 +1313,7 @@ async function openTxModal(type, tx) {
     document.getElementById('tx-description').value = tx?.description || '';
     document.getElementById('tx-amount').value = tx?.amount ?? '';
     document.getElementById('tx-notes').value = tx?.notes || '';
+    document.getElementById('tx-payment-code').value = tx?.payment_code || '';
     document.getElementById('tx-status').value = tx?.status || 'pending';
     const today = new Date().toISOString().slice(0,10);
     document.getElementById('tx-date').value = tx?.date || today;
@@ -1470,6 +1477,7 @@ async function saveTransaction() {
         status,
         payment_date: status === 'paid' ? (editingTx?.payment_date || date) : null,
         notes: document.getElementById('tx-notes').value.trim() || null,
+        payment_code: document.getElementById('tx-payment-code').value.trim() || null,
         attachment_url: currentAttachmentUrl || null
     };
 
@@ -1571,6 +1579,23 @@ document.addEventListener('DOMContentLoaded', () => {
         currentAttachmentUrl = null;
         document.getElementById('tx-current-attachment').style.display = 'none';
         document.getElementById('tx-attachment').value = '';
+    });
+    
+    document.getElementById('tx-copy-code').addEventListener('click', () => {
+        const codeInput = document.getElementById('tx-payment-code');
+        const code = codeInput.value.trim();
+        if (!code) {
+            showToast('Nenhum código para copiar', 'error');
+            return;
+        }
+        navigator.clipboard.writeText(code).then(() => {
+            showToast('Código copiado! ✅', 'success');
+        }).catch(err => {
+            console.error('Erro ao copiar:', err);
+            // Fallback: selecionar o texto
+            codeInput.select();
+            showToast('Selecione e copie manualmente', 'error');
+        });
     });
     
     document.getElementById('tx-category').addEventListener('change', e => {
@@ -1910,11 +1935,16 @@ function billCardHTML(t) {
     // Badge de quem criou
     const creatorBadge = getUserBadge(t.user_id);
     
+    // Ícone de anexo
+    const attachIcon = t.attachment_url 
+        ? `<span onclick="event.stopPropagation(); window.open('${t.attachment_url}', '_blank')" style="cursor: pointer; font-size: 1.4em; margin-left: 6px;" title="Ver anexo">📎</span>` 
+        : '';
+    
     return `
     <div class="bill-card ${stClass} ${typeClass}" data-id="${t.id}">
         <button class="bill-check" data-check="${t.id}" aria-label="${ariaCheck}">${checkIcon}</button>
         <div class="bill-info" data-open="${t.id}">
-            <div class="bill-title">${typeIcon}${escapeHtml(groupLabelOf(t))} ${recTag}${creatorBadge}</div>
+            <div class="bill-title">${typeIcon}${escapeHtml(groupLabelOf(t))} ${recTag}${creatorBadge}${attachIcon}</div>
             <div class="bill-meta">
                 <span class="bill-due ${dueClass}">📅 ${dueLabel}</span>
                 ${t.category ? `<span>· ${escapeHtml(t.category)}</span>` : ''}
