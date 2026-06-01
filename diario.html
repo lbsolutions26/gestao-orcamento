@@ -256,6 +256,27 @@
             padding: 4px 8px;
             font-weight: 600;
         }
+        .budget-type-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+        .budget-type-tab {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: var(--border);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .budget-type-tab.active {
+            background: var(--primary);
+            color: white;
+        }
         .budget-item {
             margin-bottom: 10px;
             padding: 8px 0;
@@ -898,6 +919,10 @@
                 <button class="budget-toggle" id="budget-collapse">▼ Ocultar</button>
             </div>
         </div>
+        <div class="budget-type-tabs">
+            <button class="budget-type-tab active" data-budget-type="expense">💸 Despesas</button>
+            <button class="budget-type-tab" data-budget-type="income">💰 Receitas</button>
+        </div>
         <div id="budgets-list"></div>
     </div>
 
@@ -1048,13 +1073,13 @@
                         style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
                 </select>
             </div>
-            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Fornecedor/Cliente (opcional)</label>
+            <label id="budget-supplier-label" style="display: block; margin-bottom: 8px; font-weight: 600;">Fornecedor/Cliente (opcional)</label>
             <select id="budget-supplier-input" 
                     style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
                 <option value="">Nenhum (geral)</option>
             </select>
             
-            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Meta de Gasto (R$)</label>
+            <label id="budget-amount-label" style="display: block; margin-bottom: 8px; font-weight: 600;">Meta de Gasto (R$)</label>
             <input type="number" id="budget-amount-input" step="0.01" min="0" placeholder="0,00" 
                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
             
@@ -1208,7 +1233,8 @@ const state = {
     familyId: null,
     familyUsers: {},      // map: user_id -> { name, email }
     allTx: [],            // todas as despesas (todos os meses)
-    budgets: [],          // budgets do mês atual
+    budgets: [],          // budgets do mês atual (ambos expense e income)
+    budgetType: 'expense', // tipo de budget visualizado: 'expense' ou 'income'
     viewYear: null,
     viewMonth: null,      // 0-11
     activeTab: 'month',
@@ -1309,8 +1335,7 @@ async function loadBudgets() {
         .select('*')
         .eq('family_id', state.familyId)
         .eq('year', state.viewYear)
-        .eq('month', state.viewMonth + 1)
-        .eq('type', 'expense');
+        .eq('month', state.viewMonth + 1);
     if (error) {
         console.error('Erro ao carregar budgets:', error);
         state.budgets = [];
@@ -1323,21 +1348,24 @@ function renderBudgets() {
     const section = document.getElementById('budgets-section');
     const list = document.getElementById('budgets-list');
     
-    // Calcular gastos por categoria no mês atual
+    // Filtrar budgets pelo tipo selecionado
+    const typeBudgets = state.budgets.filter(b => b.type === state.budgetType);
+    
+    // Calcular gastos/receitas por categoria no mês atual
     const monthTx = txOfMonth(state.allTx, state.viewYear, state.viewMonth);
-    const expenseTx = monthTx.filter(t => t.type === 'expense' && t.affects_balance !== false);
+    const typeTx = monthTx.filter(t => t.type === state.budgetType && t.affects_balance !== false);
     
     // Criar lista de itens com os orçamentos cadastrados
     const items = [];
     
-    // Adicionar todos os budgets
-    state.budgets.forEach(budget => {
+    // Adicionar todos os budgets do tipo selecionado
+    typeBudgets.forEach(budget => {
         const category = budget.category;
         const supplier = budget.supplier || null;
         const budgetAmount = parseFloat(budget.budget_amount);
         
         // Filtrar transações: mesma categoria e (se budget tem supplier, mesma supplier também)
-        const spent = expenseTx
+        const actual = typeTx
             .filter(t => {
                 const matchCategory = (t.category || 'Sem categoria') === category;
                 const matchSupplier = !supplier || (t.supplier || null) === supplier;
@@ -1345,18 +1373,26 @@ function renderBudgets() {
             })
             .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
         
-        const remaining = budgetAmount - spent;
-        const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+        const remaining = budgetAmount - actual;
+        const percentage = budgetAmount > 0 ? (actual / budgetAmount) * 100 : 0;
         
         let progressClass = '';
-        if (percentage >= 100) progressClass = 'danger';
-        else if (percentage >= 80) progressClass = 'warning';
+        if (state.budgetType === 'expense') {
+            // Para despesas: vermelho se ultrapassou, amarelo se próximo
+            if (percentage >= 100) progressClass = 'danger';
+            else if (percentage >= 80) progressClass = 'warning';
+        } else {
+            // Para receitas: verde se atingiu, amarelo se próximo
+            if (percentage >= 100) progressClass = ''; // verde padrão
+            else if (percentage >= 80) progressClass = 'warning';
+            else progressClass = 'danger'; // vermelho se longe da meta
+        }
         
         items.push({
             category,
             supplier,
             budgetAmount,
-            spent,
+            actual,
             remaining,
             percentage: Math.min(percentage, 100),
             progressClass
@@ -1366,15 +1402,16 @@ function renderBudgets() {
     if (items.length === 0) {
         section.style.display = 'block';
         list.style.display = state.budgetsVisible ? 'block' : 'none';
-        list.innerHTML = '<div style="padding: 12px 0; color: var(--text-muted); font-size: 0.9rem; text-align: center;">Nenhum orçamento definido. Clique em <strong>➕ Novo</strong> para criar.</div>';
+        const typeLabel = state.budgetType === 'expense' ? 'de despesas' : 'de receitas';
+        list.innerHTML = `<div style="padding: 12px 0; color: var(--text-muted); font-size: 0.9rem; text-align: center;">Nenhum orçamento ${typeLabel} definido. Clique em <strong>➕ Novo</strong> para criar.</div>`;
         return;
     }
     
     section.style.display = 'block';
     list.style.display = state.budgetsVisible ? 'block' : 'none';
     
-    // Ordenar por gasto (maior primeiro)
-    items.sort((a, b) => b.spent - a.spent);
+    // Ordenar por valor realizado (maior primeiro)
+    items.sort((a, b) => b.actual - a.actual);
     
     list.innerHTML = items.map(item => {
         const displayName = item.supplier 
@@ -1390,7 +1427,7 @@ function renderBudgets() {
             <div class="budget-top">
                 <div class="budget-name" onclick="${onclickAttr}">${displayName}</div>
                 <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
-                    ${fmtMoney(item.spent)} / ${fmtMoney(item.budgetAmount)}
+                    ${fmtMoney(item.actual)} / ${fmtMoney(item.budgetAmount)}
                 </div>
             </div>
             <div class="budget-bar">
@@ -1407,7 +1444,7 @@ let currentBudgetSupplier = null;
 async function openBudgetModal(category, supplier = null) {
     currentBudgetCategory = category;
     currentBudgetSupplier = supplier;
-    const budget = state.budgets.find(b => b.category === category && (b.supplier || null) === supplier);
+    const budget = state.budgets.find(b => b.category === category && (b.supplier || null) === supplier && b.type === state.budgetType);
     const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
     
     // Carrega opções se necessário
@@ -1416,13 +1453,17 @@ async function openBudgetModal(category, supplier = null) {
     // Esconde seletor de categoria (modo edição: categoria fixa)
     document.getElementById('budget-category-row').style.display = 'none';
     
-    // Preenche select de fornecedores
-    const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
-    const uniqueSuppliers = [...new Set(allSuppliers)].sort();
+    // Atualizar labels conforme tipo
+    const isExpense = state.budgetType === 'expense';
+    document.getElementById('budget-supplier-label').textContent = isExpense ? 'Fornecedor (opcional)' : 'Cliente (opcional)';
+    document.getElementById('budget-amount-label').textContent = isExpense ? 'Meta de Gasto (R$)' : 'Meta de Receita (R$)';
+    
+    // Preenche select de fornecedores/clientes
+    const contacts = isExpense ? (txOptionsCache.suppliers || []) : (txOptionsCache.clients || []);
     const sel = document.getElementById('budget-supplier-input');
     sel.innerHTML = '<option value="">Nenhum (geral)</option>'
         + '<option value="__new__">➕ Cadastrar novo...</option>'
-        + uniqueSuppliers.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
+        + contacts.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
     sel.value = supplier || '';
     
     const titleText = supplier ? `💰 ${category} - ${supplier}` : `💰 ${category}`;
@@ -1442,27 +1483,34 @@ async function openNewBudgetModal() {
     // Carrega opções se necessário
     if (txOptionsCache.suppliers === null) await loadTxOptions();
     
-    // Mostra e preenche seletor de categorias (despesas)
+    // Atualizar labels conforme tipo
+    const isExpense = state.budgetType === 'expense';
+    document.getElementById('budget-supplier-label').textContent = isExpense ? 'Fornecedor (opcional)' : 'Cliente (opcional)';
+    document.getElementById('budget-amount-label').textContent = isExpense ? 'Meta de Gasto (R$)' : 'Meta de Receita (R$)';
+    
+    // Mostra e preenche seletor de categorias conforme tipo selecionado
     const catRow = document.getElementById('budget-category-row');
     const catSel = document.getElementById('budget-category-input');
-    const cats = (txOptionsCache.categoriesExpense && txOptionsCache.categoriesExpense.length)
-        ? txOptionsCache.categoriesExpense
-        : DEFAULT_CATEGORIES.expense;
+    const cats = state.budgetType === 'expense'
+        ? (txOptionsCache.categoriesExpense && txOptionsCache.categoriesExpense.length ? txOptionsCache.categoriesExpense : DEFAULT_CATEGORIES.expense)
+        : (txOptionsCache.categoriesIncome && txOptionsCache.categoriesIncome.length ? txOptionsCache.categoriesIncome : DEFAULT_CATEGORIES.income);
     catSel.innerHTML = '<option value="">Selecione...</option>'
         + cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtmlTx(c)}</option>`).join('');
     catSel.value = '';
     catRow.style.display = 'block';
     
-    // Preenche select de fornecedores
-    const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
-    const uniqueSuppliers = [...new Set(allSuppliers)].sort();
+    // Preenche select de fornecedores/clientes conforme tipo
+    const contacts = state.budgetType === 'expense'
+        ? (txOptionsCache.suppliers || [])
+        : (txOptionsCache.clients || []);
     const sel = document.getElementById('budget-supplier-input');
     sel.innerHTML = '<option value="">Nenhum (geral)</option>'
         + '<option value="__new__">➕ Cadastrar novo...</option>'
-        + uniqueSuppliers.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
+        + contacts.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
     sel.value = '';
     
-    document.getElementById('budget-modal-title').textContent = '💰 Novo Orçamento';
+    const typeLabel = state.budgetType === 'expense' ? 'Despesa' : 'Receita';
+    document.getElementById('budget-modal-title').textContent = `💰 Nova Meta de ${typeLabel}`;
     document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
     document.getElementById('budget-amount-input').value = '';
     document.getElementById('budget-delete-btn').style.display = 'none';
@@ -1506,7 +1554,9 @@ async function saveBudget() {
     
     try {
         const existing = state.budgets.find(b => 
-            b.category === currentBudgetCategory && (b.supplier || null) === currentBudgetSupplier
+            b.category === currentBudgetCategory && 
+            (b.supplier || null) === currentBudgetSupplier &&
+            b.type === state.budgetType
         );
         
         if (existing) {
@@ -1528,7 +1578,7 @@ async function saveBudget() {
                 .insert([{
                     family_id: state.familyId,
                     category: currentBudgetCategory,
-                    type: 'expense',
+                    type: state.budgetType,
                     budget_amount: amount,
                     supplier: supplier,
                     month: state.viewMonth + 1,
@@ -1608,6 +1658,22 @@ function setupEvents() {
     });
     
     // Budget events
+    // Event listeners para abas de tipo de orçamento
+    document.querySelectorAll('.budget-type-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const type = tab.dataset.budgetType;
+            if (type === state.budgetType) return; // Já está na aba
+            
+            // Atualizar estado e UI
+            state.budgetType = type;
+            document.querySelectorAll('.budget-type-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Re-renderizar budgets
+            renderBudgets();
+        });
+    });
+    
     document.getElementById('budget-collapse').addEventListener('click', () => {
         state.budgetsVisible = !state.budgetsVisible;
         const list = document.getElementById('budgets-list');
