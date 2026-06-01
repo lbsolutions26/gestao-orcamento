@@ -221,7 +221,7 @@
         .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
         .summary-card.income { background: rgba(209, 250, 229, 0.25); }
         .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
-        .summary-card.balance .val { font-size: 1.5rem !important; font-weight: 800; }
+        .summary-card.balance .val { font-size: 2.2rem !important; font-weight: 800; }
         .summary-card.clickable { cursor: pointer; transition: transform .12s, background .2s; }
         .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .summary-card .sub { font-size: 0.65rem; opacity: 0.8; margin-top: 2px; white-space: nowrap; }
@@ -1329,7 +1329,8 @@ function renderBudgets() {
         return;
     }
     
-    section.style.display = state.budgetsVisible ? 'block' : 'none';
+    section.style.display = 'block';
+    list.style.display = state.budgetsVisible ? 'block' : 'none';
     
     const items = Array.from(allCategories).map(category => {
         const budget = state.budgets.find(b => b.category === category);
@@ -1501,9 +1502,9 @@ function setupEvents() {
     // Budget events
     document.getElementById('budget-collapse').addEventListener('click', () => {
         state.budgetsVisible = !state.budgetsVisible;
-        const section = document.getElementById('budgets-section');
+        const list = document.getElementById('budgets-list');
         const btn = document.getElementById('budget-collapse');
-        section.style.display = state.budgetsVisible ? 'block' : 'none';
+        list.style.display = state.budgetsVisible ? 'block' : 'none';
         btn.textContent = state.budgetsVisible ? '▼ Ocultar' : '▶ Mostrar';
     });
     
