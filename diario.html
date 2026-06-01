@@ -1014,6 +1014,14 @@
 
             <label>Observações</label>
             <textarea id="tx-notes" placeholder="Opcional"></textarea>
+
+            <label for="tx-attachment">📎 Anexar Boleto/Fatura (opcional)</label>
+            <input type="file" id="tx-attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-bottom: 8px;">
+            <small style="color: var(--text-muted); display: block; font-size: 0.85rem; margin-bottom: 8px;">Formatos aceitos: PDF, JPG, PNG, WEBP (máx. 5MB)</small>
+            <div id="tx-current-attachment" style="display: none; margin-top: 8px; padding: 8px; background: var(--primary-light); border-radius: 8px;">
+                <span id="tx-current-attachment-name" style="color: var(--primary-dark);"></span>
+                <button type="button" id="tx-remove-attachment" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; border: 1px solid var(--danger); background: white; color: var(--danger); border-radius: 6px; cursor: pointer;">❌ Remover</button>
+            </div>
         </div>
         <div class="tx-modal-footer">
             <button class="tx-btn-cancel" id="tx-btn-cancel">Cancelar</button>
@@ -1245,6 +1253,7 @@ const DEFAULT_PAYMENTS = ['Conta Corrente', 'Pix', 'Dinheiro', 'Cartão de Créd
 let txOptionsCache = { suppliers: null, clients: null, categoriesExpense: null, categoriesIncome: null, payments: null };
 let currentTxType = 'expense';
 let editingTx = null;
+let currentAttachmentUrl = null;
 
 async function loadTxOptions() {
     // Tenta carregar do supabase; se tabelas não existem, usa fallback
@@ -1285,6 +1294,7 @@ function escapeHtmlTx(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;'
 async function openTxModal(type, tx) {
     currentTxType = type;
     editingTx = tx || null;
+    currentAttachmentUrl = tx?.attachment_url || null;
     const isEdit = !!tx;
     document.getElementById('tx-modal-title').textContent = isEdit
         ? (type === 'expense' ? 'Editar Despesa' : 'Editar Receita')
@@ -1301,6 +1311,19 @@ async function openTxModal(type, tx) {
     const today = new Date().toISOString().slice(0,10);
     document.getElementById('tx-date').value = tx?.date || today;
     document.getElementById('tx-due-date').value = tx?.due_date || tx?.date || today;
+
+    // Anexo atual
+    const attachInput = document.getElementById('tx-attachment');
+    const currentAttachDiv = document.getElementById('tx-current-attachment');
+    const currentAttachName = document.getElementById('tx-current-attachment-name');
+    attachInput.value = '';
+    if (currentAttachmentUrl) {
+        const fileName = currentAttachmentUrl.split('/').pop();
+        currentAttachName.innerHTML = `📎 <a href="${currentAttachmentUrl}" target="_blank" style="color: var(--primary-dark); text-decoration: underline;">${fileName}</a>`;
+        currentAttachDiv.style.display = 'block';
+    } else {
+        currentAttachDiv.style.display = 'none';
+    }
 
     // Carrega opções (uma vez)
     if (txOptionsCache.suppliers === null) await loadTxOptions();
@@ -1330,6 +1353,69 @@ async function openTxModal(type, tx) {
 function closeTxModal() {
     document.getElementById('tx-modal-overlay').classList.remove('open');
     document.body.style.overflow = '';
+    currentAttachmentUrl = null;
+}
+
+// ====== Upload de Anexos ======
+async function uploadAttachment(file, transactionId) {
+    try {
+        // Validar tamanho (máx 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            throw new Error('Arquivo muito grande! Tamanho máximo: 5MB');
+        }
+        
+        // Validar tipo
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            throw new Error('Tipo de arquivo não suportado! Use PDF, JPG, PNG ou WEBP');
+        }
+        
+        // Gerar nome único
+        const timestamp = Date.now();
+        const extension = file.name.split('.').pop();
+        const fileName = `${state.user.id}/${transactionId}_${timestamp}.${extension}`;
+        
+        // Upload para Supabase Storage
+        const { data, error } = await supabaseClient.storage
+            .from('transaction-attachments')
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+        
+        if (error) throw error;
+        
+        // Obter URL pública
+        const { data: { publicUrl } } = supabaseClient.storage
+            .from('transaction-attachments')
+            .getPublicUrl(fileName);
+        
+        return publicUrl;
+    } catch (error) {
+        console.error('❌ Erro no upload:', error);
+        throw error;
+    }
+}
+
+async function deleteAttachment(url) {
+    try {
+        if (!url) return;
+        
+        // Extrair path do arquivo da URL
+        const urlParts = url.split('/transaction-attachments/');
+        if (urlParts.length < 2) return;
+        
+        const filePath = urlParts[1];
+        
+        const { error } = await supabaseClient.storage
+            .from('transaction-attachments')
+            .remove([filePath]);
+        
+        if (error) throw error;
+    } catch (error) {
+        console.error('⚠️ Erro ao deletar anexo:', error);
+        // Não falhar a operação se o anexo não puder ser deletado
+    }
 }
 
 async function handleSelectCreate(selectId, table, extraFields, reloadKey) {
@@ -1383,34 +1469,71 @@ async function saveTransaction() {
         payment_method: document.getElementById('tx-payment').value || null,
         status,
         payment_date: status === 'paid' ? (editingTx?.payment_date || date) : null,
-        notes: document.getElementById('tx-notes').value.trim() || null
+        notes: document.getElementById('tx-notes').value.trim() || null,
+        attachment_url: currentAttachmentUrl || null
     };
 
     const btn = document.getElementById('tx-btn-save');
     btn.disabled = true; btn.textContent = 'Salvando...';
-    let error;
-    if (editingTx) {
-        ({ error } = await supabaseClient.from('transactions').update(payload).eq('id', editingTx.id));
-    } else {
-        payload.user_id = state.user.id;
-        payload.family_id = state.familyId;
-        payload.added_by = state.user.id;
-        payload.affects_balance = true;
-        payload.is_bill_payment = false;
-        ({ error } = await supabaseClient.from('transactions').insert([payload]));
-    }
-    btn.disabled = false; btn.textContent = 'Salvar';
-    if (error) {
+    
+    try {
+        let savedTransaction;
+        let error;
+        
+        if (editingTx) {
+            // Edição: fazer upload antes se houver novo arquivo
+            const attachInput = document.getElementById('tx-attachment');
+            if (attachInput.files.length > 0) {
+                if (currentAttachmentUrl) {
+                    await deleteAttachment(currentAttachmentUrl);
+                }
+                const file = attachInput.files[0];
+                const attachmentUrl = await uploadAttachment(file, editingTx.id);
+                payload.attachment_url = attachmentUrl;
+            }
+            
+            ({ error } = await supabaseClient.from('transactions').update(payload).eq('id', editingTx.id).select());
+            if (error) throw error;
+        } else {
+            // Inserção
+            payload.user_id = state.user.id;
+            payload.family_id = state.familyId;
+            payload.added_by = state.user.id;
+            payload.affects_balance = true;
+            payload.is_bill_payment = false;
+            
+            const { data, error: insertError } = await supabaseClient.from('transactions').insert([payload]).select();
+            if (insertError) throw insertError;
+            savedTransaction = data[0];
+            
+            // Se há arquivo, fazer upload e atualizar
+            const attachInput = document.getElementById('tx-attachment');
+            if (attachInput.files.length > 0) {
+                const file = attachInput.files[0];
+                const attachmentUrl = await uploadAttachment(file, savedTransaction.id);
+                
+                const { error: updateError } = await supabaseClient
+                    .from('transactions')
+                    .update({ attachment_url: attachmentUrl })
+                    .eq('id', savedTransaction.id);
+                
+                if (updateError) throw updateError;
+            }
+        }
+        
+        showToast(editingTx ? 'Atualizado' : (currentTxType === 'expense' ? 'Despesa adicionada' : 'Receita adicionada'), 'success');
+        closeTxModal();
+        await loadAll();
+        // Se estávamos no modal de detalhes, atualiza
+        if (state.currentGroupKey) {
+            renderModalHistory();
+        }
+    } catch (error) {
         console.error(error);
         showToast('Erro: ' + error.message, 'error');
-        return;
-    }
-    showToast(editingTx ? 'Atualizado' : (currentTxType === 'expense' ? 'Despesa adicionada' : 'Receita adicionada'), 'success');
-    closeTxModal();
-    await loadAll();
-    // Se estávamos no modal de detalhes, atualiza
-    if (state.currentGroupKey) {
-        renderModalHistory();
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
     }
 }
 
@@ -1444,6 +1567,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentTxType === 'expense' ? 'suppliers' : 'clients');
         }
     });
+    document.getElementById('tx-remove-attachment').addEventListener('click', () => {
+        currentAttachmentUrl = null;
+        document.getElementById('tx-current-attachment').style.display = 'none';
+        document.getElementById('tx-attachment').value = '';
+    });
+    
     document.getElementById('tx-category').addEventListener('change', e => {
         if (e.target.value === '__new__') {
             handleSelectCreate('tx-category', 'categories',
