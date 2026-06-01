@@ -122,9 +122,8 @@ function detectarIntencaoLancamento(text) {
   // Procura um número monetário (50 | 50,90 | 1.234,56 | R$ 50)
   const matchValor = t.match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
   if (!matchValor) return null;
-  const valorStr = matchValor[1].replace(/\./g, '').replace(',', '.');
-  const valor = parseFloat(valorStr);
-  if (!isFinite(valor) || valor <= 0) return null;
+  const valor = parseValorMonetario(matchValor[1]);
+  if (!valor || valor <= 0) return null;
 
   // Remove o trecho do valor (incluindo "R$") e usa o resto como descrição
   const descricao = t
@@ -403,8 +402,7 @@ async function sugerirTransacao(botToken, chatId, supabase, user, text, tipo) {
   
   const matchValor = semCmd.match(/^([\d.,]+)\s+(.+)$/);
   if (matchValor) {
-    const valorStr = matchValor[1].replace(/\./g, '').replace(',', '.');
-    valor = parseFloat(valorStr);
+    valor = parseValorMonetario(matchValor[1]);
     restoInput = matchValor[2].trim();
   }
 
@@ -803,11 +801,10 @@ async function adicionarTransacao(botToken, chatId, supabase, user, text, tipo) 
     );
   }
 
-  const valorStr = match[1].replace(/\./g, '').replace(',', '.');
-  const valor = parseFloat(valorStr);
+  const valor = parseValorMonetario(match[1]);
   const descricao = match[2].trim();
 
-  if (isNaN(valor) || valor <= 0) {
+  if (!valor || valor <= 0) {
     return sendMessage(botToken, chatId, '❌ Valor inválido.');
   }
 
@@ -1103,6 +1100,58 @@ async function sendMessage(botToken, chatId, text, extra = {}) {
 
 function fmt(n) {
   return Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Parse robusto de valores monetários (suporta formatos BR e US)
+function parseValorMonetario(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  
+  // Remove espaços, R$, etc
+  const limpo = s.replace(/[R$\s]/g, '');
+  
+  // Caso 1: tem vírgula → assume formato BR (1.234,56 ou 59,9)
+  if (limpo.includes(',')) {
+    const semPontos = limpo.replace(/\./g, ''); // remove separadores de milhares
+    const comPonto = semPontos.replace(',', '.'); // vírgula vira ponto decimal
+    const val = parseFloat(comPonto);
+    return isFinite(val) ? val : null;
+  }
+  
+  // Caso 2: só tem ponto(s) → pode ser decimal OU separador de milhares
+  if (limpo.includes('.')) {
+    const partes = limpo.split('.');
+    
+    // Se último grupo tem 1 ou 2 dígitos → é decimal (ex: 59.9, 59.90)
+    if (partes[partes.length - 1].length <= 2) {
+      const val = parseFloat(limpo);
+      return isFinite(val) ? val : null;
+    }
+    
+    // Se último grupo tem 3 dígitos mas há só 1 ponto → ambíguo, assume decimal
+    // Ex: 1.234 pode ser mil e duzentos OU um vírgula duzentos e trinta e quatro
+    // Decisão: se valor < 10 assume decimal, senão assume milhares
+    if (partes.length === 2 && partes[1].length === 3) {
+      const asDecimal = parseFloat(limpo);
+      // Se o número inteiro é pequeno (< 10), provavelmente é decimal
+      if (parseInt(partes[0]) < 10) {
+        return isFinite(asDecimal) ? asDecimal : null;
+      }
+      // Senão, assume separador de milhares
+      const semPontos = limpo.replace(/\./g, '');
+      const val = parseFloat(semPontos);
+      return isFinite(val) ? val : null;
+    }
+    
+    // Múltiplos pontos → separador de milhares (ex: 1.234.567)
+    const semPontos = limpo.replace(/\./g, '');
+    const val = parseFloat(semPontos);
+    return isFinite(val) ? val : null;
+  }
+  
+  // Caso 3: só dígitos → parse direto
+  const val = parseFloat(limpo);
+  return isFinite(val) ? val : null;
 }
 
 function pad(n) {
