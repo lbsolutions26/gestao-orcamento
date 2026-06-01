@@ -1,7 +1,7 @@
 // ==========================================
 // NOTIFICAÇÕES TELEGRAM - GESTÃO DE ORÇAMENTO
 // Vercel Serverless Function
-// Chamada via Cron Job: 7:00 e 12:30 (BRT)
+// Chamada via Cron Job: 7:00 (BRT)
 // ==========================================
 
 const { createClient } = require('@supabase/supabase-js');
