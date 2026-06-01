@@ -775,7 +775,7 @@ async function checkAuth() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
-            window.location.href = 'index.html';
+            window.location.replace('index.html?stay');
             return;
         }
         state.user = session.user;
@@ -785,7 +785,7 @@ async function checkAuth() {
         document.getElementById('app').classList.remove('hidden');
     } catch (e) {
         console.error(e);
-        window.location.href = 'index.html';
+        window.location.replace('index.html?stay');
     }
 }
 
@@ -823,7 +823,7 @@ async function loadAll() {
 function setupEvents() {
     document.getElementById('logout-btn').addEventListener('click', async () => {
         await supabaseClient.auth.signOut();
-        window.location.href = 'index.html';
+        window.location.replace('index.html?stay');
     });
     document.getElementById('prev-month').addEventListener('click', () => shiftMonth(-1));
     document.getElementById('next-month').addEventListener('click', () => shiftMonth(1));
