@@ -23,7 +23,7 @@
             }).catch(() => {});
         }
         // Redireciona para a página Diário ao abrir o site
-        // (use ?stay na URL para abrir o dashboard completo)
+        // (use ?stay na URL para abrir gráficos, família ou cadastro)
         if ((window.location.pathname === '/' || window.location.pathname.endsWith('/index.html')) && 
             !window.location.search.includes('stay')) {
             window.location.replace('diario.html');
@@ -186,18 +186,7 @@
             </div>
             <ul class="sidebar-menu">
                 <li>
-                    <button class="menu-item active" data-screen="dashboard">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
-                        <span>Dashboard</span>
-                    </button>
-                </li>
-                <li>
-                    <button class="menu-item" data-screen="graficos">
+                    <button class="menu-item active" data-screen="graficos">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="20" x2="12" y2="10"></line>
                             <line x1="18" y1="20" x2="18" y2="4"></line>
@@ -216,12 +205,13 @@
                     </a>
                 </li>
                 <li>
-                    <a href="pagamentos.html" class="menu-item">
+                    <a href="cadastros.html" class="menu-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                            <path d="M20 7h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path>
+                            <line x1="9" y1="12" x2="15" y2="12"></line>
+                            <line x1="12" y1="9" x2="12" y2="15"></line>
                         </svg>
-                        <span>Pagamentos</span>
+                        <span>Cadastros</span>
                     </a>
                 </li>
                 <li>
@@ -244,95 +234,12 @@
                         <span>Meu Cadastro</span>
                     </button>
                 </li>
-                <li>
-                    <button class="menu-item" data-screen="gestor-financeiro">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M12 16v.01"></path>
-                            <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"></path>
-                        </svg>
-                        <span>Gestor Financeiro</span>
-                    </button>
-                </li>
             </ul>
         </nav>
         <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-        <!-- TELA DASHBOARD -->
-        <div id="dashboard" class="screen active">
-        <!-- Balance Cards -->
-        <div class="balance-section">
-            <div class="balance-grid-compact">
-                <div class="balance-card-compact balance-total">
-                    <p class="balance-label-compact">Saldo Atual</p>
-                    <p class="balance-value-compact" id="balance-total">R$ 0,00</p>
-                </div>
-                <div class="balance-card-compact balance-income clickable-card" id="card-income" data-type="income">
-                    <p class="balance-label-compact">📈 Receitas</p>
-                    <p class="balance-value-compact" id="balance-income">R$ 0,00</p>
-                </div>
-                <div class="balance-card-compact balance-expense clickable-card" id="card-expense" data-type="expense">
-                    <p class="balance-label-compact">📉 Despesas</p>
-                    <p class="balance-value-compact" id="balance-expense">R$ 0,00</p>
-                </div>
-                <div class="balance-card-compact balance-pending clickable-card" id="card-pending" data-type="pending">
-                    <p class="balance-label-compact">⏳ Pendentes</p>
-                    <p class="balance-value-compact" id="balance-pending">R$ 0,00</p>
-                    <p class="balance-count-compact" id="pending-count">0</p>
-                </div>
-                <div class="balance-card-compact balance-overdue clickable-card" id="card-overdue" data-type="overdue">
-                    <p class="balance-label-compact">⚠️ Atrasadas</p>
-                    <p class="balance-value-compact" id="balance-overdue">R$ 0,00</p>
-                    <p class="balance-count-compact" id="overdue-count">0</p>
-                </div>
-                <div class="balance-card-compact balance-credit clickable-card" id="card-credit" data-type="credit">
-                    <p class="balance-label-compact">💳 Cartão</p>
-                    <p class="balance-value-compact" id="balance-credit">R$ 0,00</p>
-                    <p class="balance-count-compact" id="credit-count">0</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-            <button id="add-income-btn" class="btn btn-success">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Receita
-            </button>
-            <button id="add-expense-btn" class="btn btn-danger">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Despesa
-            </button>
-        </div>
-
-        <!-- Transactions List -->
-        <div class="transactions-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-                <h2 style="margin: 0;">Transações Recentes</h2>
-                <input type="text" id="search-input" class="search-input" placeholder="🔍 Pesquisar...">
-            </div>
-            <div id="transactions-list" class="transactions-list">
-                <div class="empty-state">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="9" y1="9" x2="15" y2="15"></line>
-                        <line x1="15" y1="9" x2="9" y2="15"></line>
-                    </svg>
-                    <p>Nenhuma transação ainda</p>
-                    <p class="empty-subtitle">Adicione sua primeira receita ou despesa</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- FIM TELA DASHBOARD -->
-
     <!-- TELA DE GRÁFICOS -->
-    <div id="graficos" class="screen">
+    <div id="graficos" class="screen active">
         <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
 
             <!-- Título + Filtros -->
@@ -440,55 +347,6 @@
         </div>
     </div>
     <!-- FIM TELA FAMÍLIA -->
-
-    <!-- TELA GESTOR FINANCEIRO -->
-    <div id="gestor-financeiro" class="screen" style="padding-top: 0;">
-        <div class="screen-header" style="padding-top: 1rem;">
-            <h2>🤖 Gestor Financeiro</h2>
-            <p class="screen-subtitle">Faça perguntas sobre seus dados e receba análises automáticas</p>
-            <button id="config-ai-token-btn" class="btn btn-secondary" style="margin-top: 0.5rem;">
-                ⚙️ Configurar Token IA
-            </button>
-        </div>
-
-        <div class="ai-manager-container">
-            <div class="ai-insights-card">
-                <h3>Perguntas rápidas</h3>
-                <div class="ai-suggestions" id="financial-suggestions">
-                    <button class="ai-suggestion-btn" data-question="Quais são os próximos vencimentos para a semana que vem?">Próximos vencimentos da semana que vem</button>
-                    <button class="ai-suggestion-btn" data-question="Nos últimos meses, qual categoria de gasto está aumentando?">Categoria de gasto em alta</button>
-                    <button class="ai-suggestion-btn" data-question="Me dê um resumo financeiro do mês atual">Resumo financeiro do mês atual</button>
-                </div>
-            </div>
-
-            <div class="ai-chat-card">
-                <div id="financial-chat-messages" class="ai-chat-messages">
-                    <div class="ai-message ai-message-assistant">
-                        Olá! Eu sou seu gestor financeiro inteligente. Posso analisar seus lançamentos e responder perguntas como:
-                        <br><br>
-                        • Quais vencimentos estão chegando?
-                        <br>
-                        • Qual categoria está subindo mais?
-                        <br>
-                        • Como está o mês atual?
-                    </div>
-                </div>
-
-                <form id="financial-question-form" class="ai-question-form">
-                    <input
-                        type="text"
-                        id="financial-question-input"
-                        class="ai-question-input"
-                        placeholder="Ex: Quais contas vencem na próxima semana?"
-                        required
-                    >
-                    <button type="submit" class="btn btn-primary">Perguntar</button>
-                    <button type="button" id="financial-clear-chat" class="btn btn-secondary">Limpar</button>
-                </form>
-            </div>
-        </div>
-    </div>
-    <!-- FIM TELA GESTOR FINANCEIRO -->
 
     <!-- TELA DE CADASTRO DO USUÁRIO -->
     <div id="cadastro" class="screen" style="padding-top: 0;">
