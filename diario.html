@@ -221,10 +221,10 @@
         .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
         .summary-card.income { background: rgba(209, 250, 229, 0.25); }
         .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
-        .summary-card.balance .val { font-size: 2.2rem !important; font-weight: 800; }
+        .summary-card.balance .val { font-size: 0.95rem !important; font-weight: 700; }
         .summary-card.clickable { cursor: pointer; transition: transform .12s, background .2s; }
         .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
-        .summary-card .sub { font-size: 0.65rem; opacity: 0.8; margin-top: 2px; white-space: nowrap; }
+        .summary-card .sub { font-size: 1.2rem; font-weight: 700; opacity: 0.95; margin-top: 4px; white-space: nowrap; }
 
         /* ===== Budgets Section ===== */
         .budgets-section {
@@ -1039,6 +1039,10 @@
             <div class="modal-sub" id="budget-modal-sub"></div>
         </header>
         <div class="modal-body" style="padding: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Fornecedor/Cliente (opcional)</label>
+            <input type="text" id="budget-supplier-input" placeholder="Ex: Unimed, Panvel, etc" 
+                   style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
+            
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">Meta de Gasto (R$)</label>
             <input type="number" id="budget-amount-input" step="0.01" min="0" placeholder="0,00" 
                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
@@ -1312,30 +1316,24 @@ function renderBudgets() {
     const monthTx = txOfMonth(state.allTx, state.viewYear, state.viewMonth);
     const expenseTx = monthTx.filter(t => t.type === 'expense' && t.affects_balance !== false);
     
-    const spentByCategory = {};
-    expenseTx.forEach(t => {
-        const cat = t.category || 'Sem categoria';
-        spentByCategory[cat] = (spentByCategory[cat] || 0) + parseFloat(t.amount || 0);
-    });
+    // Criar lista de itens: um para cada budget + categorias sem budget mas com gasto > 50
+    const items = [];
     
-    // Categorias principais (que têm budget OU têm gasto > 50)
-    const allCategories = new Set([
-        ...state.budgets.map(b => b.category),
-        ...Object.keys(spentByCategory).filter(cat => spentByCategory[cat] > 50)
-    ]);
-    
-    if (allCategories.size === 0) {
-        section.style.display = 'none';
-        return;
-    }
-    
-    section.style.display = 'block';
-    list.style.display = state.budgetsVisible ? 'block' : 'none';
-    
-    const items = Array.from(allCategories).map(category => {
-        const budget = state.budgets.find(b => b.category === category);
-        const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
-        const spent = spentByCategory[category] || 0;
+    // Adicionar todos os budgets
+    state.budgets.forEach(budget => {
+        const category = budget.category;
+        const supplier = budget.supplier || null;
+        const budgetAmount = parseFloat(budget.budget_amount);
+        
+        // Filtrar transações: mesma categoria e (se budget tem supplier, mesma supplier também)
+        const spent = expenseTx
+            .filter(t => {
+                const matchCategory = (t.category || 'Sem categoria') === category;
+                const matchSupplier = !supplier || (t.supplier || null) === supplier;
+                return matchCategory && matchSupplier;
+            })
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        
         const remaining = budgetAmount - spent;
         const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
         
@@ -1343,23 +1341,65 @@ function renderBudgets() {
         if (percentage >= 100) progressClass = 'danger';
         else if (percentage >= 80) progressClass = 'warning';
         
-        const hasBudget = budgetAmount > 0;
-        
-        return {
+        items.push({
             category,
+            supplier,
             budgetAmount,
             spent,
             remaining,
             percentage: Math.min(percentage, 100),
             progressClass,
-            hasBudget
-        };
-    }).sort((a, b) => b.spent - a.spent);
+            hasBudget: true
+        });
+    });
     
-    list.innerHTML = items.map(item => `
+    // Adicionar categorias sem budget mas com gasto > 50
+    const spentByCategory = {};
+    expenseTx.forEach(t => {
+        const cat = t.category || 'Sem categoria';
+        spentByCategory[cat] = (spentByCategory[cat] || 0) + parseFloat(t.amount || 0);
+    });
+    
+    Object.keys(spentByCategory).forEach(category => {
+        const spent = spentByCategory[category];
+        if (spent > 50 && !state.budgets.some(b => b.category === category && !b.supplier)) {
+            items.push({
+                category,
+                supplier: null,
+                budgetAmount: 0,
+                spent,
+                remaining: 0,
+                percentage: 0,
+                progressClass: '',
+                hasBudget: false
+            });
+        }
+    });
+    
+    if (items.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    list.style.display = state.budgetsVisible ? 'block' : 'none';
+    
+    // Ordenar por gasto (maior primeiro)
+    items.sort((a, b) => b.spent - a.spent);
+    
+    list.innerHTML = items.map(item => {
+        const displayName = item.supplier 
+            ? `${escapeHtml(item.category)} <span style="opacity: 0.7; font-size: 0.85em;">— ${escapeHtml(item.supplier)}</span>`
+            : escapeHtml(item.category);
+        
+        const onclickAttr = item.supplier
+            ? `openBudgetModal('${escapeAttr(item.category)}', '${escapeAttr(item.supplier)}')`
+            : `openBudgetModal('${escapeAttr(item.category)}')`;
+        
+        return `
         <div class="budget-item">
             <div class="budget-top">
-                <div class="budget-name" onclick="openBudgetModal('${escapeAttr(item.category)}')">${escapeHtml(item.category)}</div>
+                <div class="budget-name" onclick="${onclickAttr}">${displayName}</div>
                 <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
                     ${fmtMoney(item.spent)}${item.hasBudget ? ` / ${fmtMoney(item.budgetAmount)}` : ` <span style="opacity: 0.6;">(sem meta)</span>`}
                 </div>
@@ -1370,18 +1410,26 @@ function renderBudgets() {
                 </div>
             ` : ''}
         </div>
+    `;
+    }).join('');
+}
+        </div>
     `).join('');
 }
 
 let currentBudgetCategory = null;
+let currentBudgetSupplier = null;
 
-function openBudgetModal(category) {
+function openBudgetModal(category, supplier = null) {
     currentBudgetCategory = category;
-    const budget = state.budgets.find(b => b.category === category);
+    currentBudgetSupplier = supplier;
+    const budget = state.budgets.find(b => b.category === category && (b.supplier || null) === supplier);
     const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
     
-    document.getElementById('budget-modal-title').textContent = `💰 ${category}`;
+    const titleText = supplier ? `💰 ${category} - ${supplier}` : `💰 ${category}`;
+    document.getElementById('budget-modal-title').textContent = titleText;
     document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
+    document.getElementById('budget-supplier-input').value = supplier || '';
     document.getElementById('budget-amount-input').value = budgetAmount || '';
     
     document.getElementById('budget-modal-overlay').classList.add('open');
@@ -1392,13 +1440,16 @@ function closeBudgetModal() {
     document.getElementById('budget-modal-overlay').classList.remove('open');
     document.body.style.overflow = '';
     currentBudgetCategory = null;
+    currentBudgetSupplier = null;
 }
 
 async function saveBudget() {
     if (!currentBudgetCategory) return;
     
     const amountInput = document.getElementById('budget-amount-input');
+    const supplierInput = document.getElementById('budget-supplier-input');
     const amount = parseFloat(amountInput.value);
+    const supplier = supplierInput.value.trim() || null;
     
     if (!amount || amount <= 0) {
         showToast('Informe um valor válido', 'error');
@@ -1410,13 +1461,19 @@ async function saveBudget() {
     btn.textContent = 'Salvando...';
     
     try {
-        const existing = state.budgets.find(b => b.category === currentBudgetCategory);
+        const existing = state.budgets.find(b => 
+            b.category === currentBudgetCategory && (b.supplier || null) === currentBudgetSupplier
+        );
         
         if (existing) {
             // Atualizar
             const { error } = await supabaseClient
                 .from('category_budgets')
-                .update({ budget_amount: amount, updated_at: new Date().toISOString() })
+                .update({ 
+                    budget_amount: amount, 
+                    supplier: supplier,
+                    updated_at: new Date().toISOString() 
+                })
                 .eq('id', existing.id);
             
             if (error) throw error;
@@ -1429,6 +1486,7 @@ async function saveBudget() {
                     category: currentBudgetCategory,
                     type: 'expense',
                     budget_amount: amount,
+                    supplier: supplier,
                     month: state.viewMonth + 1,
                     year: state.viewYear
                 }]);
@@ -1452,13 +1510,19 @@ async function saveBudget() {
 async function deleteBudget() {
     if (!currentBudgetCategory) return;
     
-    const existing = state.budgets.find(b => b.category === currentBudgetCategory);
+    const existing = state.budgets.find(b => 
+        b.category === currentBudgetCategory && (b.supplier || null) === currentBudgetSupplier
+    );
     if (!existing) {
         showToast('Nenhum orçamento para remover', 'error');
         return;
     }
     
-    if (!confirm(`Remover orçamento de "${currentBudgetCategory}"?`)) return;
+    const confirmText = currentBudgetSupplier 
+        ? `Remover orçamento de "${currentBudgetCategory} - ${currentBudgetSupplier}"?`
+        : `Remover orçamento de "${currentBudgetCategory}"?`;
+    
+    if (!confirm(confirmText)) return;
     
     try {
         const { error } = await supabaseClient
