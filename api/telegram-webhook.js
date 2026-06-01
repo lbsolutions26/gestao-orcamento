@@ -97,8 +97,52 @@ async function handleMessage(message, supabase, botToken) {
     return sugerirTransacao(botToken, chatId, supabase, user, text, 'income');
   }
 
+  // Heurística: texto curto com valor monetário → tratar como lançamento
+  // Ex.: "Mercadinho 39,90", "39,90 mercado", "Uber 25"
+  const intencao = detectarIntencaoLancamento(text);
+  if (intencao) {
+    const textoComCmd = `/${intencao.tipo === 'expense' ? 'despesa' : 'receita'} ${intencao.valor} ${intencao.descricao}`.trim();
+    return sugerirTransacao(botToken, chatId, supabase, user, textoComCmd, intencao.tipo);
+  }
+
   // Texto livre → IA
   return responderComIA(botToken, chatId, supabase, user, text);
+}
+
+// Detecta se um texto livre parece um lançamento de transação.
+// Retorna { tipo, valor, descricao } ou null.
+function detectarIntencaoLancamento(text) {
+  const t = text.trim();
+  if (!t || t.startsWith('/')) return null;
+
+  // No máximo 8 palavras — perguntas tendem a ser maiores
+  const palavras = t.split(/\s+/);
+  if (palavras.length > 8) return null;
+
+  // Procura um número monetário (50 | 50,90 | 1.234,56 | R$ 50)
+  const matchValor = t.match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
+  if (!matchValor) return null;
+  const valorStr = matchValor[1].replace(/\./g, '').replace(',', '.');
+  const valor = parseFloat(valorStr);
+  if (!isFinite(valor) || valor <= 0) return null;
+
+  // Remove o trecho do valor (incluindo "R$") e usa o resto como descrição
+  const descricao = t
+    .replace(matchValor[0], ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!descricao) return null;
+
+  // Palavras que sugerem pergunta → não tratar como lançamento
+  const lower = t.toLowerCase();
+  const padraoPergunta = /[?]|^(qua[lnt]|quem|como|onde|por que|porque|quando|me (mostre|diga|fale)|liste|resumo|saldo|gastei|gasto|gastou|recebi|sobrou|sobra|previs|tend[êe]nc|comp(are|aração))/;
+  if (padraoPergunta.test(lower)) return null;
+
+  // Heurística de tipo: "recebi", "salário", "entrou" → receita; demais → despesa
+  const padraoReceita = /\b(recebi|sal[áa]rio|sal[áa]rios|entrou|cr[ée]dito|recebimento|prov[êe]nto|pix recebido)\b/i;
+  const tipo = padraoReceita.test(lower) ? 'income' : 'expense';
+
+  return { tipo, valor, descricao };
 }
 
 async function handleCallback(callback, supabase, botToken) {
@@ -115,35 +159,34 @@ async function handleCallback(callback, supabase, botToken) {
     body: JSON.stringify({ callback_query_id: callback.id })
   });
 
-  // Callbacks de transação confirmada
-  // tx:  → paga | txp: → pendente
-  if (data.startsWith('tx:') || data.startsWith('txp:')) {
-    const pending = data.startsWith('txp:');
-    const encoded = data.replace(/^txp?:/, '');
-    try {
-      const decoded = Buffer.from(encoded, 'base64').toString('utf-8');
-      // Formato novo: tipo|valor|cat|metodo|sup|desc
-      // Formato legado: tipo|valor|cat|metodo|desc (sem fornecedor)
-      const partes = decoded.split('|');
-      if (partes.length >= 5) {
-        const tipo = partes[0] === 'e' ? 'expense' : 'income';
-        const a = parseFloat(partes[1]);
-        const c = partes[2];
-        const p = partes[3];
-        let s = '';
-        let d = '';
-        if (partes.length >= 6) {
-          s = partes[4];
-          d = partes.slice(5).join('|');
-        } else {
-          d = partes.slice(4).join('|');
-        }
-        const txData = { t: tipo, a, c, p, s, d, st: pending ? 'pending' : 'paid' };
-        return confirmarTransacao(botToken, chatId, supabase, user, txData);
-      }
-    } catch (err) {
-      console.error('Erro ao decodificar transação:', err);
-      return sendMessage(botToken, chatId, '❌ Erro ao processar confirmação.');
+  // Callbacks novos baseados em estado: act:<id>:<verbo>
+  // verbos: paid | pend | swapS | swapC | cancel
+  if (data.startsWith('act:')) {
+    const partes = data.split(':');
+    const pid = partes[1];
+    const verbo = partes[2];
+    const pending = await carregarPendente(supabase, pid);
+    if (!pending) {
+      return sendMessage(botToken, chatId, '⌛ Esta confirmação expirou. Envie o lançamento novamente.');
+    }
+
+    if (verbo === 'cancel') {
+      await removerPendente(supabase, pid);
+      return sendMessage(botToken, chatId, '❌ Cancelado.');
+    }
+    if (verbo === 'swapS') {
+      pending.payload.supplier.usar = pending.payload.supplier.usar === 'cadastrado' ? 'novo' : 'cadastrado';
+      await atualizarPendente(supabase, pid, pending.payload);
+      return reenviarCardConfirmacao(botToken, chatId, supabase, user, pid, pending.payload);
+    }
+    if (verbo === 'swapC') {
+      pending.payload.categoria.usar = pending.payload.categoria.usar === 'cadastrado' ? 'novo' : 'cadastrado';
+      await atualizarPendente(supabase, pid, pending.payload);
+      return reenviarCardConfirmacao(botToken, chatId, supabase, user, pid, pending.payload);
+    }
+    if (verbo === 'paid' || verbo === 'pend') {
+      await removerPendente(supabase, pid);
+      return confirmarTransacao(botToken, chatId, supabase, user, pending.payload, verbo === 'pend' ? 'pending' : 'paid');
     }
   }
 
@@ -483,8 +526,8 @@ Regras:
   const fornecedorFinal = (sugestao?.fornecedor_sugerido || fornecedorInput || '').trim();
   const descricaoFinal = (sugestao?.descricao_sugerida ?? descricaoInput ?? '').trim();
   const valorFinal = valor || sugestao?.valor_sugerido || null;
-  const categoriaFinal = sugestao?.categoria || 'Outros';
-  const metodoFinal = sugestao?.metodo_pagamento || 'Conta Corrente';
+  const categoriaFinal = (sugestao?.categoria || 'Outros').trim();
+  const metodoFinal = (sugestao?.metodo_pagamento || 'Conta Corrente').trim();
   const obs = sugestao?.observacao;
 
   if (!valorFinal || valorFinal <= 0) {
@@ -494,57 +537,130 @@ Regras:
     return sendMessage(botToken, chatId, '❌ Informe um fornecedor ou descrição.', { parse_mode: 'Markdown' });
   }
 
-  // Montar mensagem de confirmação
+  // Lookup nos cadastros (case-insensitive + similaridade)
+  const lookupSup = resolverCadastro(fornecedorFinal, cadastros.contatos);
+  const lookupCat = resolverCadastro(categoriaFinal, cadastros.categorias);
+  const lookupMet = resolverCadastro(metodoFinal, cadastros.metodos);
+
+  const hojeISO = new Date().toISOString().split('T')[0];
+
+  const payload = {
+    tipo,
+    valor: valorFinal,
+    descricao: descricaoFinal,
+    data: hojeISO,
+    obs: obs || null,
+    supplier: {
+      input: fornecedorFinal,
+      match: lookupSup.match,
+      cadastrado: lookupSup.cadastrado,
+      usar: lookupSup.match === 'none' ? 'novo' : 'cadastrado'
+    },
+    categoria: {
+      input: categoriaFinal,
+      match: lookupCat.match,
+      cadastrado: lookupCat.cadastrado,
+      usar: lookupCat.match === 'none' ? 'novo' : 'cadastrado'
+    },
+    metodo: {
+      input: metodoFinal,
+      match: lookupMet.match,
+      cadastrado: lookupMet.cadastrado,
+      // método não tem swap; se ambíguo, usa cadastrado direto
+      usar: lookupMet.match === 'none' ? 'novo' : 'cadastrado'
+    }
+  };
+
+  // Salva estado pendente (id curto para callback)
+  const pid = await salvarPendente(supabase, chatId, user.id, familyId, payload);
+  if (!pid) {
+    return sendMessage(botToken, chatId, '❌ Erro ao preparar confirmação. Tente novamente.');
+  }
+
+  return reenviarCardConfirmacao(botToken, chatId, supabase, user, pid, payload);
+}
+
+// ==========================================
+// CARD DE CONFIRMAÇÃO (usa estado em telegram_pending)
+// ==========================================
+function nomeFinalCampo(campo) {
+  if (campo.usar === 'cadastrado' && campo.cadastrado) return campo.cadastrado;
+  return campo.input;
+}
+
+async function reenviarCardConfirmacao(botToken, chatId, supabase, user, pid, payload) {
+  const tipo = payload.tipo;
   const emoji = tipo === 'expense' ? '💸' : '💵';
   const label = tipo === 'expense' ? 'Despesa' : 'Receita';
   const supLabel = tipo === 'expense' ? 'Fornecedor' : 'Cliente';
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  
+  const hojeBR = new Date().toLocaleDateString('pt-BR');
+
+  const supNome = nomeFinalCampo(payload.supplier);
+  const catNome = nomeFinalCampo(payload.categoria);
+  const metNome = nomeFinalCampo(payload.metodo);
+
+  const supMark = marcadorCampo(payload.supplier);
+  const catMark = marcadorCampo(payload.categoria);
+  const metMark = marcadorCampo(payload.metodo);
+
   let mensagem = `${emoji} *Confirmar ${label}?*\n\n`;
-  if (fornecedorFinal) mensagem += `• ${supLabel}: ${fornecedorFinal}\n`;
-  if (descricaoFinal) mensagem += `• Descrição: ${descricaoFinal}\n`;
-  mensagem += `• Valor: *R$ ${fmt(valorFinal)}*\n`;
-  mensagem += `• Categoria: ${categoriaFinal}\n`;
-  mensagem += `• Data: ${hoje}\n`;
-  mensagem += `• Método: ${metodoFinal}\n`;
-  
-  if (obs) {
-    mensagem += `\n💡 ${obs}`;
+  if (supNome) mensagem += `• ${supLabel}: ${supNome} ${supMark}\n`;
+  if (payload.descricao) mensagem += `• Descrição: ${payload.descricao}\n`;
+  mensagem += `• Valor: *R$ ${fmt(payload.valor)}*\n`;
+  mensagem += `• Categoria: ${catNome} ${catMark}\n`;
+  mensagem += `• Data: ${hojeBR}\n`;
+  mensagem += `• Método: ${metNome} ${metMark}\n`;
+
+  // Avisos / observações
+  const avisos = [];
+  if (payload.supplier.match === 'similar') {
+    const alt = payload.supplier.usar === 'cadastrado' ? payload.supplier.input : payload.supplier.cadastrado;
+    avisos.push(`💡 ${supLabel} "${payload.supplier.input}" parece com "${payload.supplier.cadastrado}" (cadastrado). Use 🔄 abaixo para alternar para "${alt}".`);
+  } else if (payload.supplier.match === 'none' && supNome) {
+    avisos.push(`🆕 ${supLabel} *${supNome}* será criado ao confirmar.`);
   }
-
-  // Codificar dados para o callback (compacto para limite de 64 bytes)
-  // Formato: tipo|valor|cat|metodo|sup|desc (truncados)
-  const supCompacto = (fornecedorFinal || '').substring(0, 12);
-  const descCompacta = (descricaoFinal || '').substring(0, 15);
-  const compacto = `${tipo === 'expense' ? 'e' : 'r'}|${valorFinal}|${categoriaFinal.substring(0,10)}|${metodoFinal.substring(0,10)}|${supCompacto}|${descCompacta}`;
-  const encoded = Buffer.from(compacto).toString('base64');
-  
-  const callbackPago = `tx:${encoded}`;
-  const callbackPendente = `txp:${encoded}`;
-  
-  // Se passar de 64 bytes em algum, fallback: salvar como paga direto
-  if (callbackPago.length > 64 || callbackPendente.length > 64) {
-    const txData = { t: tipo, d: descricaoFinal, a: valorFinal, c: categoriaFinal, p: metodoFinal, s: fornecedorFinal, st: 'paid' };
-    return confirmarTransacao(botToken, chatId, supabase, user, txData);
+  if (payload.categoria.match === 'similar') {
+    const altC = payload.categoria.usar === 'cadastrado' ? payload.categoria.input : payload.categoria.cadastrado;
+    avisos.push(`💡 Categoria "${payload.categoria.input}" parece com "${payload.categoria.cadastrado}". Use 🔄 para alternar para "${altC}".`);
+  } else if (payload.categoria.match === 'none' && catNome && catNome !== 'Outros') {
+    avisos.push(`🆕 Categoria *${catNome}* será criada ao confirmar.`);
   }
+  if (payload.obs) avisos.push(`ℹ️ ${payload.obs}`);
+  if (avisos.length) mensagem += `\n` + avisos.join('\n');
 
-  const linhaBotoes = tipo === 'expense'
-    ? [
-        { text: '✅ Paga', callback_data: callbackPago },
-        { text: '📅 Pendente', callback_data: callbackPendente },
-        { text: '❌ Cancelar', callback_data: 'cancel' }
-      ]
-    : [
-        { text: '✅ Confirmar', callback_data: callbackPago },
-        { text: '❌ Cancelar', callback_data: 'cancel' }
-      ];
-
-  const teclado = { inline_keyboard: [ linhaBotoes ] };
+  // Botões
+  const linhas = [];
+  if (tipo === 'expense') {
+    linhas.push([
+      { text: '✅ Paga', callback_data: `act:${pid}:paid` },
+      { text: '📅 Pendente', callback_data: `act:${pid}:pend` }
+    ]);
+  } else {
+    linhas.push([
+      { text: '✅ Confirmar', callback_data: `act:${pid}:paid` }
+    ]);
+  }
+  if (payload.supplier.match === 'similar') {
+    const alt = payload.supplier.usar === 'cadastrado' ? payload.supplier.input : payload.supplier.cadastrado;
+    linhas.push([{ text: `🔄 Usar "${alt}"`, callback_data: `act:${pid}:swapS` }]);
+  }
+  if (payload.categoria.match === 'similar') {
+    const altC = payload.categoria.usar === 'cadastrado' ? payload.categoria.input : payload.categoria.cadastrado;
+    linhas.push([{ text: `🔄 Categoria: "${altC}"`, callback_data: `act:${pid}:swapC` }]);
+  }
+  linhas.push([{ text: '❌ Cancelar', callback_data: `act:${pid}:cancel` }]);
 
   return sendMessage(botToken, chatId, mensagem, {
     parse_mode: 'Markdown',
-    reply_markup: teclado
+    reply_markup: { inline_keyboard: linhas }
   });
+}
+
+function marcadorCampo(campo) {
+  if (!campo || !campo.input) return '';
+  if (campo.match === 'exact') return '✅';
+  if (campo.match === 'similar') return campo.usar === 'cadastrado' ? '✅' : '🆕';
+  return '🆕';
 }
 
 // Carrega cadastros (fonte de verdade) para uma família
@@ -569,71 +685,103 @@ async function carregarCadastros(supabase, familyId, tipo) {
   }
 }
 
-// Cria cadastro se não existir (best-effort, ignora erros)
+// Cria cadastro se não existir (lookup case-insensitive antes do insert).
+// Recebe nomes JÁ finais (cadastrado ou novo). Só insere quando realmente novo.
 async function garantirCadastro(supabase, familyId, tipo, { supplier, category, payment_method }) {
   if (!familyId) return;
   const tasks = [];
   if (supplier && supplier.trim()) {
     const kind = tipo === 'expense' ? 'supplier' : 'client';
-    tasks.push(supabase.from('contacts').insert({ family_id: familyId, name: supplier.trim(), kind }));
+    tasks.push((async () => {
+      const { data: existe } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('family_id', familyId)
+        .eq('kind', kind)
+        .ilike('name', supplier.trim())
+        .maybeSingle();
+      if (!existe) {
+        await supabase.from('contacts').insert({ family_id: familyId, name: supplier.trim(), kind });
+      }
+    })());
   }
-  if (category && category.trim() && category.trim() !== 'Outros') {
-    tasks.push(supabase.from('categories').insert({ family_id: familyId, name: category.trim(), type: tipo }));
+  if (category && category.trim() && category.trim().toLowerCase() !== 'outros') {
+    tasks.push((async () => {
+      const { data: existe } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('family_id', familyId)
+        .eq('type', tipo)
+        .ilike('name', category.trim())
+        .maybeSingle();
+      if (!existe) {
+        await supabase.from('categories').insert({ family_id: familyId, name: category.trim(), type: tipo });
+      }
+    })());
   }
   if (payment_method && payment_method.trim()) {
-    tasks.push(supabase.from('payment_methods').insert({ family_id: familyId, name: payment_method.trim() }));
+    tasks.push((async () => {
+      const { data: existe } = await supabase
+        .from('payment_methods')
+        .select('id')
+        .eq('family_id', familyId)
+        .ilike('name', payment_method.trim())
+        .maybeSingle();
+      if (!existe) {
+        await supabase.from('payment_methods').insert({ family_id: familyId, name: payment_method.trim() });
+      }
+    })());
   }
-  // ignora erros (provavelmente unique violation = já existe)
   await Promise.all(tasks.map(p => p.then(() => {}).catch(() => {})));
 }
 
-async function confirmarTransacao(botToken, chatId, supabase, user, txData) {
+async function confirmarTransacao(botToken, chatId, supabase, user, payload, status) {
   const { familyId } = await getUserScope(supabase, user.id);
   const hoje = new Date().toISOString().split('T')[0];
 
-  const tipo = txData.t;
-  const status = txData.st === 'pending' ? 'pending' : 'paid';
-  const supplier = (txData.s || '').trim() || null;
-  const description = (txData.d || '').trim() || null;
+  const tipo = payload.tipo;
+  const supplierFinal = nomeFinalCampo(payload.supplier).trim() || null;
+  const categoriaFinal = nomeFinalCampo(payload.categoria).trim() || 'Outros';
+  const metodoFinal = nomeFinalCampo(payload.metodo).trim() || 'Conta Corrente';
+  const descricaoFinal = (payload.descricao || '').trim() || null;
 
-  const payload = {
+  const row = {
     user_id: user.id,
     type: tipo,
-    description,
-    supplier,
-    amount: txData.a,
-    category: txData.c,
+    description: descricaoFinal,
+    supplier: supplierFinal,
+    amount: payload.valor,
+    category: categoriaFinal,
     date: hoje,
     due_date: hoje,
-    payment_method: txData.p,
+    payment_method: metodoFinal,
     affects_balance: true,
     status,
     payment_date: status === 'paid' ? hoje : null
   };
-  if (familyId) payload.family_id = familyId;
+  if (familyId) row.family_id = familyId;
 
-  const { error } = await supabase.from('transactions').insert(payload);
+  const { error } = await supabase.from('transactions').insert(row);
 
   if (error) {
     console.error('Erro ao inserir:', error);
     return sendMessage(botToken, chatId, `❌ Erro ao salvar: ${error.message}`);
   }
 
-  // Auto-cadastrar fornecedor/categoria/método (best-effort)
+  // Auto-cadastrar fornecedor/categoria/método APENAS quando realmente novo
   garantirCadastro(supabase, familyId, tipo, {
-    supplier,
-    category: txData.c,
-    payment_method: txData.p
+    supplier: payload.supplier.usar === 'novo' ? supplierFinal : null,
+    category: payload.categoria.usar === 'novo' ? categoriaFinal : null,
+    payment_method: payload.metodo.usar === 'novo' ? metodoFinal : null
   }).catch(() => {});
 
   const emoji = tipo === 'expense' ? '💸' : '💵';
-  const label = tipo === 'expense' ? 'Receita' : 'Receita';
   const statusLabel = status === 'pending' ? ' (pendente)' : '';
   const titulo = tipo === 'expense' ? `Despesa${statusLabel}` : `Receita${statusLabel}`;
   let resposta = `✅ ${emoji} *${titulo} registrada!*\n\n`;
-  if (supplier) resposta += `• ${tipo === 'expense' ? 'Fornecedor' : 'Cliente'}: ${supplier}\n`;
-  if (description) resposta += `• Descrição: ${description}\n`;
-  resposta += `• R$ ${fmt(txData.a)}\n• ${txData.c}`;
+  if (supplierFinal) resposta += `• ${tipo === 'expense' ? 'Fornecedor' : 'Cliente'}: ${supplierFinal}\n`;
+  if (descricaoFinal) resposta += `• Descrição: ${descricaoFinal}\n`;
+  resposta += `• R$ ${fmt(payload.valor)}\n• ${categoriaFinal}`;
   return sendMessage(botToken, chatId, resposta, { parse_mode: 'Markdown' });
 }
 
@@ -727,7 +875,15 @@ async function responderComIA(botToken, chatId, supabase, user, pergunta) {
 Responda em português, de forma clara e prática. Use formatação Markdown simples (negrito com *texto*).
 Valores em R$ com 2 casas. Use bullets quando listar itens.
 
-Você tem acesso ao HISTÓRICO COMPLETO de transações do usuário, incluindo:
+⚠️ IMPORTANTE — VOCÊ NÃO PODE REGISTRAR, EDITAR NEM EXCLUIR TRANSAÇÕES.
+Você é APENAS um analista que lê os dados. NUNCA diga frases como
+"despesa registrada", "adicionei", "atualizei seu saldo", "novo saldo".
+Se o usuário quiser lançar algo, oriente-o a usar o comando:
+  /despesa <valor> <descrição>     ex.: /despesa 39,90 Mercadinho
+  /receita <valor> <descrição>     ex.: /receita 3000 Salário
+Após o comando, ele deve confirmar nos botões ✅ Paga / 📅 Pendente.
+
+Você tem acesso ao HISTÓRICO COMPLETO de transações do usuário (somente leitura):
 - Últimos 6 meses detalhados
 - Todas as categorias de gastos
 - Top 10 maiores despesas
@@ -736,7 +892,7 @@ Você tem acesso ao HISTÓRICO COMPLETO de transações do usuário, incluindo:
 DADOS FINANCEIROS DO USUÁRIO:
 ${contexto}
 
-Use esses dados para dar respostas completas e insights úteis. Quando relevante, compare períodos, aponte tendências e dê recomendações.`;
+Use esses dados para dar respostas completas e insights úteis. Quando relevante, compare períodos, aponte tendências e dê recomendações — mas sempre lembrando que você apenas LÊ os dados, não os altera.`;
 
   try {
     const resp = await fetch(AI_API_URL, {
@@ -951,4 +1107,130 @@ function fmt(n) {
 
 function pad(n) {
   return String(n).padStart(2, '0');
+}
+
+// ==========================================
+// LOOKUP DE CADASTROS + SIMILARIDADE
+// ==========================================
+
+const SIM_THRESHOLD = 0.75;
+
+function normalizarNome(s) {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Distância de Levenshtein
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const linha = new Array(n + 1);
+  for (let j = 0; j <= n; j++) linha[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = linha[0];
+    linha[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = linha[j];
+      linha[j] = a[i - 1] === b[j - 1]
+        ? prev
+        : Math.min(prev, linha[j], linha[j - 1]) + 1;
+      prev = tmp;
+    }
+  }
+  return linha[n];
+}
+
+function similaridade(a, b) {
+  const x = normalizarNome(a);
+  const y = normalizarNome(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  const maxLen = Math.max(x.length, y.length);
+  return 1 - levenshtein(x, y) / maxLen;
+}
+
+// Resolve um nome digitado contra a lista de cadastros.
+// Retorna { match: 'exact'|'similar'|'none', cadastrado: <nome cadastrado>|null }
+function resolverCadastro(nomeDigitado, listaCadastrados) {
+  if (!nomeDigitado || !Array.isArray(listaCadastrados) || listaCadastrados.length === 0) {
+    return { match: 'none', cadastrado: null };
+  }
+  const alvo = normalizarNome(nomeDigitado);
+
+  // 1) exato (case/acento-insensitive)
+  for (const c of listaCadastrados) {
+    if (normalizarNome(c) === alvo) {
+      return { match: 'exact', cadastrado: c };
+    }
+  }
+  // 2) similar (acima do threshold) — escolhe o mais próximo
+  let melhor = null;
+  let melhorScore = 0;
+  for (const c of listaCadastrados) {
+    const s = similaridade(nomeDigitado, c);
+    if (s > melhorScore) {
+      melhorScore = s;
+      melhor = c;
+    }
+  }
+  if (melhor && melhorScore >= SIM_THRESHOLD) {
+    return { match: 'similar', cadastrado: melhor };
+  }
+  return { match: 'none', cadastrado: null };
+}
+
+// ==========================================
+// ESTADO PENDENTE (tabela telegram_pending)
+// ==========================================
+
+function gerarPid() {
+  // 10 chars base36 (~52 bits) — suficiente
+  return Math.random().toString(36).slice(2, 7) + Math.random().toString(36).slice(2, 7);
+}
+
+async function salvarPendente(supabase, chatId, userId, familyId, payload) {
+  const pid = gerarPid();
+  const { error } = await supabase.from('telegram_pending').insert({
+    id: pid,
+    chat_id: String(chatId),
+    user_id: userId,
+    family_id: familyId || null,
+    payload
+  });
+  if (error) {
+    console.error('Erro ao salvar pendente:', error);
+    return null;
+  }
+  // limpeza oportunista de registros antigos (> 1 dia)
+  const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  supabase.from('telegram_pending').delete().lt('created_at', ontem).then(() => {}).catch(() => {});
+  return pid;
+}
+
+async function carregarPendente(supabase, pid) {
+  if (!pid) return null;
+  const { data, error } = await supabase
+    .from('telegram_pending')
+    .select('id, payload')
+    .eq('id', pid)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
+async function atualizarPendente(supabase, pid, payload) {
+  const { error } = await supabase
+    .from('telegram_pending')
+    .update({ payload })
+    .eq('id', pid);
+  if (error) console.error('Erro ao atualizar pendente:', error);
+}
+
+async function removerPendente(supabase, pid) {
+  await supabase.from('telegram_pending').delete().eq('id', pid);
 }

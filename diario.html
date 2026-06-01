@@ -227,7 +227,9 @@
 
         /* ===== Chart modal ===== */
         .chart-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
-        .chart-row { display: flex; flex-direction: column; gap: 4px; }
+        .chart-row { display: flex; flex-direction: column; gap: 4px; cursor: pointer; padding: 8px; margin: -8px; border-radius: 8px; transition: background .2s; }
+        .chart-row:hover { background: var(--bg); }
+        .chart-row:active { background: var(--border); }
         .chart-row-head { display: flex; justify-content: space-between; font-size: .85rem; color: var(--text); }
         .chart-row-head .cat { font-weight: 600; }
         .chart-row-head .val { font-weight: 700; }
@@ -237,6 +239,32 @@
         .chart-bar.income > span { background: linear-gradient(90deg, #10b981, #059669); }
         .chart-empty { text-align: center; color: var(--muted); padding: 24px 0; }
         .chart-total { display: flex; justify-content: space-between; padding: 12px 0 4px; border-top: 1px solid var(--border); margin-top: 12px; font-weight: 700; }
+
+        /* ===== Drill-down options ===== */
+        .drill-options { display: flex; gap: 8px; padding: 16px 0; }
+        .drill-btn { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); cursor: pointer; transition: all .2s; text-align: center; }
+        .drill-btn:hover { background: var(--bg); border-color: var(--primary); }
+        .drill-btn-icon { font-size: 1.5rem; margin-bottom: 4px; }
+        .drill-btn-label { font-weight: 600; font-size: .9rem; }
+
+        /* ===== Timeline chart (histórico) ===== */
+        .timeline-chart { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+        .timeline-row { display: flex; align-items: center; gap: 12px; }
+        .timeline-month { width: 70px; font-size: .85rem; font-weight: 600; color: var(--muted); text-align: right; }
+        .timeline-bar-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+        .timeline-bar { height: 24px; border-radius: 6px; min-width: 2px; transition: all .3s; }
+        .timeline-bar.expense { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .timeline-bar.income { background: linear-gradient(90deg, #10b981, #059669); }
+        .timeline-val { font-weight: 700; font-size: .85rem; min-width: 80px; }
+
+        /* ===== Detail list (detalhes) ===== */
+        .detail-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
+        .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg); border-radius: 8px; }
+        .detail-item-left { flex: 1; }
+        .detail-item-desc { font-weight: 600; font-size: .9rem; margin-bottom: 2px; }
+        .detail-item-meta { font-size: .8rem; color: var(--muted); }
+        .detail-item-val { font-weight: 700; font-size: .95rem; }
+        .detail-empty { text-align: center; color: var(--muted); padding: 24px 0; }
 
         /* ===== Tabs ===== */
         .tabs {
@@ -894,6 +922,21 @@
     </div>
 </div>
 
+<!-- Modal: drill-down (histórico / detalhe) -->
+<div id="drill-modal-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+        <header class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="drill-modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="drill-modal-title">—</div>
+            <div class="modal-sub" id="drill-modal-sub"></div>
+        </header>
+        <div class="modal-body">
+            <div id="drill-body"></div>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <!-- Barra de ações inferior -->
@@ -1126,6 +1169,12 @@ function setupEvents() {
     document.getElementById('chart-modal-close').addEventListener('click', closeChartModal);
     document.getElementById('chart-modal-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'chart-modal-overlay') closeChartModal();
+    });
+
+    // Drill-down modal
+    document.getElementById('drill-modal-close').addEventListener('click', closeDrillModal);
+    document.getElementById('drill-modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'drill-modal-overlay') closeDrillModal();
     });
 
     // Drawer (menu lateral)
@@ -1960,7 +2009,7 @@ function openChartModal(type) {
             const pct = max > 0 ? (v / max) * 100 : 0;
             const pctTotal = total > 0 ? (v / total) * 100 : 0;
             return `
-            <div class="chart-row">
+            <div class="chart-row" data-category="${escapeHtml(cat)}" data-type="${type}">
                 <div class="chart-row-head">
                     <span class="cat">${escapeHtml(cat)} <small style="opacity:.7;font-weight:500;">(${pctTotal.toFixed(0)}%)</small></span>
                     <span class="val">${fmtMoney(v)}</span>
@@ -1972,6 +2021,15 @@ function openChartModal(type) {
             <div class="chart-list">${rows}</div>
             <div class="chart-total"><span>Total</span><span>${fmtMoney(total)}</span></div>
         `;
+        
+        // Adiciona evento de clique nas barras
+        body.querySelectorAll('.chart-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                const category = row.dataset.category;
+                const rowType = row.dataset.type;
+                showDrillOptions(category, rowType);
+            });
+        });
     }
     document.getElementById('chart-modal-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -1980,6 +2038,162 @@ function openChartModal(type) {
 function closeChartModal() {
     document.getElementById('chart-modal-overlay').classList.remove('open');
     document.body.style.overflow = '';
+}
+
+// ===== Drill-down (clique em categoria do gráfico) =====
+
+function showDrillOptions(category, type) {
+    const isIncome = type === 'income';
+    const emoji = isIncome ? '💵' : '💳';
+    
+    document.getElementById('drill-modal-title').textContent = `${emoji} ${category}`;
+    document.getElementById('drill-modal-sub').textContent = 'Selecione uma opção';
+    
+    const body = document.getElementById('drill-body');
+    body.innerHTML = `
+        <div class="drill-options">
+            <button class="drill-btn" id="drill-btn-history" data-category="${escapeHtml(category)}" data-type="${type}">
+                <div class="drill-btn-icon">📊</div>
+                <div class="drill-btn-label">Histórico</div>
+                <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Últimos 6 meses</div>
+            </button>
+            <button class="drill-btn" id="drill-btn-detail" data-category="${escapeHtml(category)}" data-type="${type}">
+                <div class="drill-btn-icon">📝</div>
+                <div class="drill-btn-label">Detalhes</div>
+                <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Lançamentos do mês</div>
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('drill-btn-history').addEventListener('click', (e) => {
+        const cat = e.currentTarget.dataset.category;
+        const tp = e.currentTarget.dataset.type;
+        showCategoryHistory(cat, tp);
+    });
+    
+    document.getElementById('drill-btn-detail').addEventListener('click', (e) => {
+        const cat = e.currentTarget.dataset.category;
+        const tp = e.currentTarget.dataset.type;
+        showCategoryDetail(cat, tp);
+    });
+    
+    document.getElementById('drill-modal-overlay').classList.add('open');
+}
+
+function showCategoryHistory(category, type) {
+    const isIncome = type === 'income';
+    const emoji = isIncome ? '💵' : '💳';
+    
+    document.getElementById('drill-modal-title').textContent = `${emoji} ${category}`;
+    document.getElementById('drill-modal-sub').textContent = 'Histórico dos últimos 6 meses';
+    
+    // Coleta dados dos últimos 6 meses
+    const now = new Date(state.viewYear, state.viewMonth - 1, 1);
+    const months = [];
+    for (let i = 0; i < 6; i++) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - i);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        
+        const monthTx = state.allTx.filter(t => {
+            const { y: ty, m: tm } = txMonth(t);
+            return ty === y && tm === m 
+                && (t.type || 'expense') === type 
+                && (t.category || '(Sem categoria)') === category;
+        });
+        
+        const total = monthTx.reduce((s, t) => s + Number(t.amount || 0), 0);
+        months.push({ 
+            year: y, 
+            month: m, 
+            label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), 
+            total 
+        });
+    }
+    
+    months.reverse(); // mais antigo primeiro
+    const maxVal = Math.max(...months.map(m => m.total), 1);
+    const cls = isIncome ? 'income' : 'expense';
+    
+    const rows = months.map(m => {
+        const widthPct = maxVal > 0 ? (m.total / maxVal) * 100 : 0;
+        return `
+            <div class="timeline-row">
+                <div class="timeline-month">${m.label}</div>
+                <div class="timeline-bar-wrap">
+                    <div class="timeline-bar ${cls}" style="width:${widthPct}%"></div>
+                    <div class="timeline-val">${fmtMoney(m.total)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    const body = document.getElementById('drill-body');
+    body.innerHTML = `<div class="timeline-chart">${rows}</div>`;
+}
+
+function showCategoryDetail(category, type) {
+    const isIncome = type === 'income';
+    const emoji = isIncome ? '💵' : '💳';
+    
+    document.getElementById('drill-modal-title').textContent = `${emoji} ${category}`;
+    document.getElementById('drill-modal-sub').textContent = `${monthName(state.viewYear, state.viewMonth)} — Detalhes`;
+    
+    const monthTx = state.allTx.filter(t => {
+        const { y, m } = txMonth(t);
+        return y === state.viewYear && m === state.viewMonth
+            && (t.type || 'expense') === type
+            && (t.category || '(Sem categoria)') === category;
+    });
+    
+    const body = document.getElementById('drill-body');
+    
+    if (monthTx.length === 0) {
+        body.innerHTML = `<div class="detail-empty">Nenhum lançamento encontrado.</div>`;
+        return;
+    }
+    
+    const sortedTx = monthTx.sort((a, b) => {
+        const dateA = new Date(a.date || a.due_date);
+        const dateB = new Date(b.date || b.due_date);
+        return dateB - dateA;
+    });
+    
+    const items = sortedTx.map(t => {
+        const desc = [t.supplier, t.description].filter(Boolean).join(' — ') || '(Sem descrição)';
+        const dateStr = fmtDate(t.date || t.due_date);
+        const statusBadge = t.status === 'pending' 
+            ? `<span style="font-size:.75rem;color:var(--warning);margin-left:6px;">⏳ Pendente</span>` 
+            : '';
+        
+        return `
+            <div class="detail-item">
+                <div class="detail-item-left">
+                    <div class="detail-item-desc">${escapeHtml(desc)}</div>
+                    <div class="detail-item-meta">
+                        ${dateStr}${statusBadge}
+                        ${t.payment_method ? ` • ${escapeHtml(t.payment_method)}` : ''}
+                    </div>
+                </div>
+                <div class="detail-item-val">${fmtMoney(t.amount)}</div>
+            </div>
+        `;
+    }).join('');
+    
+    const total = sortedTx.reduce((s, t) => s + Number(t.amount || 0), 0);
+    
+    body.innerHTML = `
+        <div class="detail-list">${items}</div>
+        <div class="chart-total" style="margin-top:16px;">
+            <span>Total (${sortedTx.length} lançamento${sortedTx.length !== 1 ? 's' : ''})</span>
+            <span>${fmtMoney(total)}</span>
+        </div>
+    `;
+}
+
+function closeDrillModal() {
+    document.getElementById('drill-modal-overlay').classList.remove('open');
 }
 
 function renderModalHistory() {
