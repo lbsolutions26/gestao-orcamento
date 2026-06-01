@@ -1888,15 +1888,23 @@ function renderModalHistory() {
         if (!map.has(k) || Number(map.get(k).amount) < Number(t.amount)) map.set(k, t);
     }
 
-    // Constrói últimos 12 meses (a partir do mês atual visualizado para trás) + 1 à frente
-    const months = [];
-    for (let i = 1; i >= -11; i--) {
-        let m = state.viewMonth + i;
-        let y = state.viewYear;
-        while (m < 0) { m += 12; y -= 1; }
-        while (m > 11) { m -= 12; y += 1; }
-        months.push({ y, m });
+    // Constrói intervalo de meses: do MAIOR entre (mês visualizado+1) e (último lançamento)
+    // até 11 meses atrás do mês visualizado (mínimo), cobrindo também o mais antigo do grupo.
+    const ymToIdx = (y, m) => y * 12 + m;
+    const idxToYm = (idx) => ({ y: Math.floor(idx / 12), m: idx % 12 });
+
+    let endIdx = ymToIdx(state.viewYear, state.viewMonth) + 1; // 1 à frente do visualizado
+    let startIdx = ymToIdx(state.viewYear, state.viewMonth) - 11; // 11 meses atrás
+
+    for (const t of group) {
+        const { y, m } = txMonth(t);
+        const i = ymToIdx(y, m);
+        if (i > endIdx) endIdx = i;
+        if (i < startIdx) startIdx = i;
     }
+
+    const months = [];
+    for (let i = endIdx; i >= startIdx; i--) months.push(idxToYm(i));
 
     const todayY = new Date().getFullYear();
     const todayM = new Date().getMonth();
