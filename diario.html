@@ -1963,6 +1963,12 @@ function txMonth(t) {
     const d = new Date((t.due_date || t.date) + 'T00:00:00');
     return { y: d.getFullYear(), m: d.getMonth() };
 }
+function txOfMonth(allTx, year, month) {
+    return allTx.filter(t => {
+        const { y, m } = txMonth(t);
+        return y === year && m === month;
+    });
+}
 function isPaid(t) { return (t.status || 'pending') === 'paid'; }
 
 // ===== Badge de usuário =====
