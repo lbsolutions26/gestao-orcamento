@@ -834,6 +834,11 @@
                 <span class="switch-slider"></span>
             </label>
         </div>
+        <div class="modal-toggle-row" id="modal-replicate-row" style="display:none; padding-top:0;">
+            <button id="modal-replicate-btn" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--primary); background:var(--primary-light); color:var(--primary-dark); font-weight:600; cursor:pointer;">
+                📄 Replicar próximos meses
+            </button>
+        </div>
 
         <div class="modal-body">
             <div class="stats-grid">
@@ -1079,6 +1084,9 @@ function setupEvents() {
         if (e.target.id === 'modal-overlay') closeModal();
     });
     document.getElementById('modal-recurring-switch').addEventListener('change', onRecurringToggle);
+    document.getElementById('modal-replicate-btn').addEventListener('click', () => {
+        if (state.currentGroupKey) replicateRecurring(state.currentGroupKey);
+    });
 
     // Drawer (menu lateral)
     document.getElementById('menu-toggle').addEventListener('click', openDrawer);
@@ -1542,6 +1550,9 @@ function renderRecurring(monthTx) {
         sBox.querySelectorAll('[data-create-key]').forEach(btn => {
             btn.addEventListener('click', () => createFromRecurring(btn.dataset.createKey));
         });
+        sBox.querySelectorAll('[data-replicate-key]').forEach(btn => {
+            btn.addEventListener('click', () => replicateRecurring(btn.dataset.replicateKey));
+        });
         sBox.querySelectorAll('[data-skip-key]').forEach(btn => {
             btn.addEventListener('click', () => {
                 btn.closest('.suggest-card').style.display = 'none';
@@ -1616,6 +1627,7 @@ function suggestCardHTML(s) {
         <div class="suggest-sub">Último lançamento em ${fmtDate(s.last.date)} · ${escapeHtml(s.last.category || '')}</div>
         <div class="suggest-actions">
             <button class="btn-secondary" data-skip-key="${escapeAttr(s.key)}">Ignorar</button>
+            <button class="btn-secondary" data-replicate-key="${escapeAttr(s.key)}" title="Replicar vários meses">📄 Replicar</button>
             <button class="btn-primary" data-create-key="${escapeAttr(s.key)}">Lançar este mês</button>
         </div>
     </div>`;
@@ -1708,7 +1720,7 @@ async function createFromRecurring(key) {
     const payload = {
         user_id: state.user.id,
         family_id: state.familyId,
-        type: 'expense',
+        type: last.type || 'expense',
         description: last.description,
         amount: last.amount,
         category: last.category,
@@ -1734,6 +1746,90 @@ async function createFromRecurring(key) {
     state.allTx.unshift(data);
     showToast('✓ Conta lançada', 'success');
     render();
+}
+
+// ====== Replicar recorrente por N meses ======
+async function replicateRecurring(key) {
+    const group = state.allTx.filter(t => groupKeyOf(t) === key);
+    if (group.length === 0) return;
+    const last = group.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+
+    const nStr = prompt('Quantos meses você quer replicar?\n(Serão criados a partir do mês seguinte ao último lançamento, pulando meses já lançados)', '12');
+    if (nStr === null) return;
+    const n = parseInt(nStr, 10);
+    if (!Number.isFinite(n) || n <= 0 || n > 60) {
+        showToast('Quantidade inválida (use entre 1 e 60)', 'error');
+        return;
+    }
+
+    // Determina dia base de vencimento
+    let day = last.recurring_day;
+    if (!day) {
+        const ref = last.due_date || last.date;
+        day = ref ? new Date(ref + 'T00:00:00').getDate() : 10;
+    }
+
+    // Mês inicial = mês seguinte ao último lançamento existente
+    const refDate = new Date((last.due_date || last.date) + 'T00:00:00');
+    let y = refDate.getFullYear();
+    let m = refDate.getMonth() + 1; // próximo mês (0-11)
+    if (m > 11) { m = 0; y++; }
+
+    // Conjunto de chaves+mês já existentes pra não duplicar
+    const existingMonths = new Set();
+    for (const t of group) {
+        const d = new Date((t.due_date || t.date) + 'T00:00:00');
+        existingMonths.add(`${d.getFullYear()}-${d.getMonth()}`);
+    }
+
+    const payloads = [];
+    let skipped = 0;
+    for (let i = 0; i < n; i++) {
+        if (!existingMonths.has(`${y}-${m}`)) {
+            const lastDay = new Date(y, m + 1, 0).getDate();
+            const dd = Math.min(day, lastDay);
+            const dueISO = `${y}-${String(m + 1).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+            payloads.push({
+                user_id: state.user.id,
+                family_id: state.familyId,
+                type: last.type || 'expense',
+                description: last.description,
+                amount: last.amount,
+                category: last.category,
+                date: dueISO,
+                due_date: dueISO,
+                payment_method: last.payment_method,
+                supplier: last.supplier,
+                status: 'pending',
+                is_recurring: true,
+                affects_balance: last.affects_balance !== false
+            });
+        } else {
+            skipped++;
+        }
+        m++;
+        if (m > 11) { m = 0; y++; }
+    }
+
+    if (payloads.length === 0) {
+        showToast('Todos os meses já estavam lançados', 'info');
+        return;
+    }
+
+    const { data, error } = await supabaseClient.from('transactions').insert(payloads).select();
+    if (error) {
+        console.error(error);
+        showToast('Erro ao replicar: ' + error.message, 'error');
+        return;
+    }
+    state.allTx.unshift(...(data || []));
+    const msg = skipped > 0
+        ? `✓ ${payloads.length} mês(es) lançado(s) (${skipped} já existiam)`
+        : `✓ ${payloads.length} mês(es) lançado(s)`;
+    showToast(msg, 'success');
+    render();
+    // Atualiza modal se estiver aberto
+    if (state.currentGroupKey === key) openDetail(state.allTx.find(x => groupKeyOf(x) === key).id);
 }
 
 // ====== Modal detalhe ======
@@ -1764,6 +1860,7 @@ function openDetail(id) {
     // Switch recorrente
     const isRec = group.some(g => g.is_recurring);
     document.getElementById('modal-recurring-switch').checked = isRec;
+    document.getElementById('modal-replicate-row').style.display = isRec ? '' : 'none';
 
     renderModalHistory();
 
