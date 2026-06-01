@@ -221,6 +221,22 @@
         .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
         .summary-card.income { background: rgba(209, 250, 229, 0.25); }
         .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
+        .summary-card.clickable { cursor: pointer; transition: transform .12s, background .2s; }
+        .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
+        .summary-card .sub { font-size: 0.65rem; opacity: 0.8; margin-top: 2px; white-space: nowrap; }
+
+        /* ===== Chart modal ===== */
+        .chart-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+        .chart-row { display: flex; flex-direction: column; gap: 4px; }
+        .chart-row-head { display: flex; justify-content: space-between; font-size: .85rem; color: var(--text); }
+        .chart-row-head .cat { font-weight: 600; }
+        .chart-row-head .val { font-weight: 700; }
+        .chart-bar { height: 10px; background: var(--border); border-radius: 6px; overflow: hidden; }
+        .chart-bar > span { display: block; height: 100%; border-radius: 6px; transition: width .4s; }
+        .chart-bar.expense > span { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .chart-bar.income > span { background: linear-gradient(90deg, #10b981, #059669); }
+        .chart-empty { text-align: center; color: var(--muted); padding: 24px 0; }
+        .chart-total { display: flex; justify-content: space-between; padding: 12px 0 4px; border-top: 1px solid var(--border); margin-top: 12px; font-weight: 700; }
 
         /* ===== Tabs ===== */
         .tabs {
@@ -746,17 +762,18 @@
         </div>
 
         <div class="summary">
-            <div class="summary-card pending">
+            <div class="summary-card pending clickable" id="card-pending" title="Ver despesas por categoria">
                 <div class="lbl">A Pagar</div>
                 <div class="val" id="sum-pending">R$ 0</div>
             </div>
-            <div class="summary-card income">
+            <div class="summary-card income clickable" id="card-income" title="Ver receitas por categoria">
                 <div class="lbl">A Receber</div>
                 <div class="val" id="sum-income">R$ 0</div>
             </div>
             <div class="summary-card balance">
                 <div class="lbl">Saldo do mês</div>
                 <div class="val" id="sum-balance">R$ 0</div>
+                <div class="sub" id="sum-balance-accum">Real: R$ 0</div>
             </div>
         </div>
     </header>
@@ -858,6 +875,21 @@
 
             <div class="history-title">Evolução mensal</div>
             <div id="modal-history"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: gráfico por categoria -->
+<div id="chart-modal-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+        <header class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="chart-modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="chart-modal-title">—</div>
+            <div class="modal-sub" id="chart-modal-sub"></div>
+        </header>
+        <div class="modal-body">
+            <div id="chart-body"></div>
         </div>
     </div>
 </div>
@@ -1086,6 +1118,14 @@ function setupEvents() {
     document.getElementById('modal-recurring-switch').addEventListener('change', onRecurringToggle);
     document.getElementById('modal-replicate-btn').addEventListener('click', () => {
         if (state.currentGroupKey) replicateRecurring(state.currentGroupKey);
+    });
+
+    // Cards clicáveis: A Pagar / A Receber → gráfico por categoria
+    document.getElementById('card-pending').addEventListener('click', () => openChartModal('expense'));
+    document.getElementById('card-income').addEventListener('click', () => openChartModal('income'));
+    document.getElementById('chart-modal-close').addEventListener('click', closeChartModal);
+    document.getElementById('chart-modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'chart-modal-overlay') closeChartModal();
     });
 
     // Drawer (menu lateral)
@@ -1461,6 +1501,24 @@ function render() {
     const elS = document.getElementById('sum-balance');
     elS.textContent = fmtMoneyShort(saldo);
     elS.style.color = saldo < 0 ? 'var(--danger)' : 'var(--success)';
+
+    // Saldo real acumulado: todas as transações PAGAS até o fim do mês selecionado
+    const endOfMonth = new Date(state.viewYear, state.viewMonth + 1, 0, 23, 59, 59);
+    const accum = state.allTx.reduce((s, t) => {
+        if (!isPaid(t)) return s;
+        if (t.affects_balance === false) return s;
+        const dateStr = t.payment_date || t.due_date || t.date;
+        if (!dateStr) return s;
+        const d = new Date(dateStr);
+        if (d > endOfMonth) return s;
+        const v = Number(t.amount || 0);
+        return s + ((t.type === 'income') ? v : -v);
+    }, 0);
+    const elA = document.getElementById('sum-balance-accum');
+    if (elA) {
+        elA.textContent = 'Real: ' + fmtMoneyShort(accum);
+        elA.style.color = accum < 0 ? 'var(--danger)' : 'var(--success)';
+    }
 
     // Listas (aplicam filtros da aba)
     const pending = applyFilter(monthTx.filter(t => !isPaid(t)), state.filters.month);
@@ -1872,6 +1930,56 @@ function closeModal() {
     document.getElementById('modal-overlay').classList.remove('open');
     document.body.style.overflow = '';
     state.currentGroupKey = null;
+}
+
+function openChartModal(type) {
+    const isIncome = type === 'income';
+    const monthTx = state.allTx.filter(t => {
+        const { y, m } = txMonth(t);
+        return y === state.viewYear && m === state.viewMonth
+            && (t.type || 'expense') === type
+            && !isPaid(t);
+    });
+    document.getElementById('chart-modal-title').textContent = isIncome ? '💵 A Receber por categoria' : '💳 A Pagar por categoria';
+    document.getElementById('chart-modal-sub').textContent = monthName(state.viewYear, state.viewMonth);
+
+    const body = document.getElementById('chart-body');
+    if (monthTx.length === 0) {
+        body.innerHTML = `<div class="chart-empty">Nenhum lançamento pendente neste mês.</div>`;
+    } else {
+        const byCat = {};
+        monthTx.forEach(t => {
+            const cat = t.category || '(Sem categoria)';
+            byCat[cat] = (byCat[cat] || 0) + Number(t.amount || 0);
+        });
+        const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+        const total = entries.reduce((s, [, v]) => s + v, 0);
+        const max = entries[0][1];
+        const cls = isIncome ? 'income' : 'expense';
+        const rows = entries.map(([cat, v]) => {
+            const pct = max > 0 ? (v / max) * 100 : 0;
+            const pctTotal = total > 0 ? (v / total) * 100 : 0;
+            return `
+            <div class="chart-row">
+                <div class="chart-row-head">
+                    <span class="cat">${escapeHtml(cat)} <small style="opacity:.7;font-weight:500;">(${pctTotal.toFixed(0)}%)</small></span>
+                    <span class="val">${fmtMoney(v)}</span>
+                </div>
+                <div class="chart-bar ${cls}"><span style="width:${pct}%"></span></div>
+            </div>`;
+        }).join('');
+        body.innerHTML = `
+            <div class="chart-list">${rows}</div>
+            <div class="chart-total"><span>Total</span><span>${fmtMoney(total)}</span></div>
+        `;
+    }
+    document.getElementById('chart-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeChartModal() {
+    document.getElementById('chart-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 function renderModalHistory() {
