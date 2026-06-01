@@ -1342,7 +1342,7 @@ function renderBudgets() {
         if (percentage >= 100) progressClass = 'danger';
         else if (percentage >= 80) progressClass = 'warning';
         
-        const hasБudget = budgetAmount > 0;
+        const hasBudget = budgetAmount > 0;
         
         return {
             category,
@@ -1351,7 +1351,7 @@ function renderBudgets() {
             remaining,
             percentage: Math.min(percentage, 100),
             progressClass,
-            hasBudget: hasБudget
+            hasBudget
         };
     }).sort((a, b) => b.spent - a.spent);
     
