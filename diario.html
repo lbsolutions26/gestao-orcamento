@@ -1040,8 +1040,10 @@
         </header>
         <div class="modal-body" style="padding: 20px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">Fornecedor/Cliente (opcional)</label>
-            <input type="text" id="budget-supplier-input" placeholder="Ex: Unimed, Panvel, etc" 
-                   style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
+            <select id="budget-supplier-input" 
+                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
+                <option value="">Nenhum (geral)</option>
+            </select>
             
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">Meta de Gasto (R$)</label>
             <input type="number" id="budget-amount-input" step="0.01" min="0" placeholder="0,00" 
@@ -1417,16 +1419,27 @@ function renderBudgets() {
 let currentBudgetCategory = null;
 let currentBudgetSupplier = null;
 
-function openBudgetModal(category, supplier = null) {
+async function openBudgetModal(category, supplier = null) {
     currentBudgetCategory = category;
     currentBudgetSupplier = supplier;
     const budget = state.budgets.find(b => b.category === category && (b.supplier || null) === supplier);
     const budgetAmount = budget ? parseFloat(budget.budget_amount) : 0;
     
+    // Carrega opções se necessário
+    if (txOptionsCache.suppliers === null) await loadTxOptions();
+    
+    // Preenche select de fornecedores
+    const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
+    const uniqueSuppliers = [...new Set(allSuppliers)].sort();
+    const sel = document.getElementById('budget-supplier-input');
+    sel.innerHTML = '<option value="">Nenhum (geral)</option>'
+        + '<option value="__new__">➕ Cadastrar novo...</option>'
+        + uniqueSuppliers.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
+    sel.value = supplier || '';
+    
     const titleText = supplier ? `💰 ${category} - ${supplier}` : `💰 ${category}`;
     document.getElementById('budget-modal-title').textContent = titleText;
     document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
-    document.getElementById('budget-supplier-input').value = supplier || '';
     document.getElementById('budget-amount-input').value = budgetAmount || '';
     
     document.getElementById('budget-modal-overlay').classList.add('open');
@@ -1444,9 +1457,9 @@ async function saveBudget() {
     if (!currentBudgetCategory) return;
     
     const amountInput = document.getElementById('budget-amount-input');
-    const supplierInput = document.getElementById('budget-supplier-input');
+    const supplierSelect = document.getElementById('budget-supplier-input');
     const amount = parseFloat(amountInput.value);
-    const supplier = supplierInput.value.trim() || null;
+    const supplier = supplierSelect.value || null;
     
     if (!amount || amount <= 0) {
         showToast('Informe um valor válido', 'error');
@@ -1575,6 +1588,42 @@ function setupEvents() {
     });
     document.getElementById('budget-save-btn').addEventListener('click', saveBudget);
     document.getElementById('budget-delete-btn').addEventListener('click', deleteBudget);
+    
+    // Event listener para criar novo fornecedor no budget modal
+    document.getElementById('budget-supplier-input').addEventListener('change', async (e) => {
+        if (e.target.value === '__new__') {
+            const name = prompt('Cadastrar novo fornecedor/cliente:');
+            if (!name || !name.trim()) { 
+                e.target.value = currentBudgetSupplier || ''; 
+                return; 
+            }
+            const payload = { family_id: state.familyId, name: name.trim(), kind: 'supplier' };
+            const { error } = await supabaseClient.from('contacts').insert([payload]);
+            if (error) {
+                if (error.code === '23505') {
+                    showToast('Já cadastrado', 'error');
+                } else {
+                    showToast('Erro: ' + error.message, 'error');
+                    console.error(error);
+                }
+                e.target.value = currentBudgetSupplier || '';
+                return;
+            }
+            showToast('Cadastrado!', 'success');
+            // Invalida cache e recarrega
+            txOptionsCache.suppliers = null;
+            txOptionsCache.clients = null;
+            await loadTxOptions();
+            // Recarrega select e seleciona novo
+            const allSuppliers = [...(txOptionsCache.suppliers || []), ...(txOptionsCache.clients || [])];
+            const uniqueSuppliers = [...new Set(allSuppliers)].sort();
+            const sel = document.getElementById('budget-supplier-input');
+            sel.innerHTML = '<option value="">Nenhum (geral)</option>'
+                + '<option value="__new__">➕ Cadastrar novo...</option>'
+                + uniqueSuppliers.map(s => `<option value="${escapeAttr(s)}">${escapeHtmlTx(s)}</option>`).join('');
+            sel.value = name.trim();
+        }
+    });
 
     document.getElementById('modal-close').addEventListener('click', closeModal);
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
