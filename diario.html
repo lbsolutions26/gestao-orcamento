@@ -219,6 +219,8 @@
         }
         .summary-card.pending { background: rgba(254, 226, 226, 0.25); }
         .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
+        .summary-card.income { background: rgba(209, 250, 229, 0.25); }
+        .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
 
         /* ===== Tabs ===== */
         .tabs {
@@ -290,6 +292,53 @@
         .bill-card.paid { border-left-color: var(--success); opacity: 0.78; }
         .bill-card.pending { border-left-color: var(--warning); }
         .bill-card.overdue { border-left-color: var(--danger); }
+        /* Receitas: borda verde sempre, independente do status */
+        .bill-card.income { border-left-color: var(--success); }
+        .bill-card.income.pending { border-left-color: #10b981; }
+        .bill-card.income .bill-amount { color: var(--success); }
+        .bill-card.income .bill-check {
+            border-color: var(--success);
+        }
+        .bill-card.income.paid .bill-check {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        /* ===== Filtros por aba ===== */
+        .tab-filters {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px 4px;
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .tab-filters select, .tab-filters input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            font-size: 0.85rem;
+            color: var(--text);
+            outline: none;
+        }
+        .tab-filters select { flex: 0 0 auto; min-width: 110px; }
+        .tab-filters input:focus, .tab-filters select:focus {
+            border-color: var(--primary);
+        }
+        .tab-filters .clear-btn {
+            flex: 0 0 auto;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
 
         .bill-check {
             flex-shrink: 0;
@@ -698,32 +747,48 @@
 
         <div class="summary">
             <div class="summary-card pending">
-                <div class="lbl">Pendente</div>
+                <div class="lbl">A Pagar</div>
                 <div class="val" id="sum-pending">R$ 0</div>
             </div>
-            <div class="summary-card paid">
-                <div class="lbl">Pago</div>
-                <div class="val" id="sum-paid">R$ 0</div>
+            <div class="summary-card income">
+                <div class="lbl">A Receber</div>
+                <div class="val" id="sum-income">R$ 0</div>
             </div>
-            <div class="summary-card">
-                <div class="lbl">Total</div>
-                <div class="val" id="sum-total">R$ 0</div>
+            <div class="summary-card balance">
+                <div class="lbl">Saldo do mês</div>
+                <div class="val" id="sum-balance">R$ 0</div>
             </div>
         </div>
     </header>
 
     <nav class="tabs">
-        <button class="tab active" data-tab="month">A Pagar <span class="badge" id="badge-month" style="display:none;">0</span></button>
+        <button class="tab active" data-tab="month">A Pagar/Receber <span class="badge" id="badge-month" style="display:none;">0</span></button>
         <button class="tab" data-tab="recurring">Recorrentes <span class="badge" id="badge-recurring" style="display:none;">0</span></button>
-        <button class="tab" data-tab="paid">Pagos</button>
+        <button class="tab" data-tab="paid">Pagos/Recebidos</button>
     </nav>
 
     <main>
         <section id="tab-month" class="tab-section active">
+            <div class="tab-filters">
+                <select id="filter-type-month" aria-label="Filtrar por tipo">
+                    <option value="all">Tudo</option>
+                    <option value="expense">Despesas</option>
+                    <option value="income">Receitas</option>
+                </select>
+                <input type="search" id="filter-search-month" placeholder="Buscar..." autocomplete="off">
+            </div>
             <div id="list-pending"></div>
         </section>
 
         <section id="tab-recurring" class="tab-section">
+            <div class="tab-filters">
+                <select id="filter-type-recurring" aria-label="Filtrar por tipo">
+                    <option value="all">Tudo</option>
+                    <option value="expense">Despesas</option>
+                    <option value="income">Receitas</option>
+                </select>
+                <input type="search" id="filter-search-recurring" placeholder="Buscar..." autocomplete="off">
+            </div>
             <div class="section-header">
                 <div class="section-title">Pendentes este mês</div>
             </div>
@@ -736,6 +801,14 @@
         </section>
 
         <section id="tab-paid" class="tab-section">
+            <div class="tab-filters">
+                <select id="filter-type-paid" aria-label="Filtrar por tipo">
+                    <option value="all">Tudo</option>
+                    <option value="expense">Despesas</option>
+                    <option value="income">Receitas</option>
+                </select>
+                <input type="search" id="filter-search-paid" placeholder="Buscar..." autocomplete="off">
+            </div>
             <div id="list-paid"></div>
         </section>
     </main>
@@ -914,7 +987,12 @@ const state = {
     viewYear: null,
     viewMonth: null,      // 0-11
     activeTab: 'month',
-    currentGroupKey: null // identifica a "conta" aberta no modal
+    currentGroupKey: null, // identifica a "conta" aberta no modal
+    filters: {            // filtros por aba
+        month:     { type: 'all', search: '' },
+        recurring: { type: 'all', search: '' },
+        paid:      { type: 'all', search: '' }
+    }
 };
 
 // ====== Init ======
@@ -987,6 +1065,14 @@ function setupEvents() {
 
     document.querySelectorAll('.tab').forEach(t => {
         t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+
+    // Filtros por aba
+    ['month', 'recurring', 'paid'].forEach(tab => {
+        const sel = document.getElementById(`filter-type-${tab}`);
+        const inp = document.getElementById(`filter-search-${tab}`);
+        if (sel) sel.addEventListener('change', () => { state.filters[tab].type = sel.value; render(); });
+        if (inp) inp.addEventListener('input', () => { state.filters[tab].search = inp.value.trim().toLowerCase(); render(); });
     });
 
     document.getElementById('modal-close').addEventListener('click', closeModal);
@@ -1334,6 +1420,19 @@ function showToast(msg, kind = '') {
 }
 
 // ====== Render ======
+function applyFilter(list, f) {
+    let r = list;
+    if (f.type && f.type !== 'all') r = r.filter(t => (t.type || 'expense') === f.type);
+    if (f.search) {
+        const q = f.search;
+        r = r.filter(t => {
+            const hay = `${t.supplier || ''} ${t.description || ''} ${t.category || ''}`.toLowerCase();
+            return hay.includes(q);
+        });
+    }
+    return r;
+}
+
 function render() {
     document.getElementById('month-label').textContent = monthName(state.viewYear, state.viewMonth);
 
@@ -1342,14 +1441,23 @@ function render() {
         return y === state.viewYear && m === state.viewMonth;
     });
 
-    const pending = monthTx.filter(t => !isPaid(t));
-    const paid = monthTx.filter(t => isPaid(t));
+    // Sumários SEMPRE consideram o mês inteiro (não os filtros das abas)
+    const expensesAll = monthTx.filter(t => (t.type || 'expense') === 'expense');
+    const incomesAll  = monthTx.filter(t => t.type === 'income');
+    const expPending  = expensesAll.filter(t => !isPaid(t)).reduce((s, t) => s + Number(t.amount || 0), 0);
+    const incPending  = incomesAll.filter(t => !isPaid(t)).reduce((s, t) => s + Number(t.amount || 0), 0);
+    const totalInc    = incomesAll.reduce((s, t) => s + Number(t.amount || 0), 0);
+    const totalExp    = expensesAll.reduce((s, t) => s + Number(t.amount || 0), 0);
+    document.getElementById('sum-pending').textContent = fmtMoneyShort(expPending);
+    document.getElementById('sum-income').textContent  = fmtMoneyShort(incPending);
+    const saldo = totalInc - totalExp;
+    const elS = document.getElementById('sum-balance');
+    elS.textContent = fmtMoneyShort(saldo);
+    elS.style.color = saldo < 0 ? 'var(--danger)' : 'var(--success)';
 
-    const sumPending = pending.reduce((s, t) => s + Number(t.amount || 0), 0);
-    const sumPaid = paid.reduce((s, t) => s + Number(t.amount || 0), 0);
-    document.getElementById('sum-pending').textContent = fmtMoneyShort(sumPending);
-    document.getElementById('sum-paid').textContent = fmtMoneyShort(sumPaid);
-    document.getElementById('sum-total').textContent = fmtMoneyShort(sumPending + sumPaid);
+    // Listas (aplicam filtros da aba)
+    const pending = applyFilter(monthTx.filter(t => !isPaid(t)), state.filters.month);
+    const paid    = applyFilter(monthTx.filter(t => isPaid(t)),  state.filters.paid);
 
     renderPendingList(pending);
     renderPaidList(paid);
@@ -1418,15 +1526,20 @@ function renderRecurring(monthTx) {
         suggestions.push({ key: k, last });
     }
 
+    // Aplica filtros da aba Recorrentes (tipo + busca)
+    const f = state.filters.recurring;
+    const suggestionsFiltered = suggestions.filter(s => applyFilter([s.last], f).length > 0);
+
     const sBox = document.getElementById('list-recurring-suggestions');
     const badge = document.getElementById('badge-recurring');
-    if (suggestions.length === 0) {
+    if (suggestionsFiltered.length === 0) {
         sBox.innerHTML = `<div class="empty" style="padding:24px"><span class="emoji">✅</span><p>Todas as contas recorrentes já estão lançadas neste mês.</p></div>`;
-        badge.style.display = 'none';
+        if (suggestions.length === 0) { badge.style.display = 'none'; }
+        else { badge.textContent = suggestions.length; badge.style.display = ''; }
     } else {
         badge.textContent = suggestions.length;
         badge.style.display = '';
-        sBox.innerHTML = suggestions.map(s => suggestCardHTML(s)).join('');
+        sBox.innerHTML = suggestionsFiltered.map(s => suggestCardHTML(s)).join('');
         sBox.querySelectorAll('[data-create-key]').forEach(btn => {
             btn.addEventListener('click', () => createFromRecurring(btn.dataset.createKey));
         });
@@ -1448,34 +1561,49 @@ function renderRecurring(monthTx) {
         const last = list.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
         items.push(last);
     }
-    items.sort((a, b) => groupLabelOf(a).localeCompare(groupLabelOf(b)));
-    allBox.innerHTML = items.map(billCardHTML).join('');
+    const itemsFiltered = applyFilter(items, f);
+    itemsFiltered.sort((a, b) => groupLabelOf(a).localeCompare(groupLabelOf(b)));
+    if (itemsFiltered.length === 0) {
+        allBox.innerHTML = `<div class="empty" style="padding:24px"><span class="emoji">🔍</span><p>Nenhum resultado para o filtro atual.</p></div>`;
+        return;
+    }
+    allBox.innerHTML = itemsFiltered.map(billCardHTML).join('');
     bindCards(allBox);
 }
 
 function billCardHTML(t) {
+    const isIncome = t.type === 'income';
     const st = dueStatus(t);
     const stClass = st === 'paid' ? 'paid' : (st === 'overdue' ? 'overdue' : 'pending');
+    const typeClass = isIncome ? 'income' : '';
     const due = t.due_date || t.date;
     const dueLabel = isPaid(t)
-        ? `Pago em ${fmtDate(t.payment_date || t.date)}`
-        : (st === 'overdue' ? `Venceu ${fmtDate(due)}` : (st === 'today' ? 'Vence hoje' : `Vence ${fmtDate(due)}`));
+        ? (isIncome ? `Recebido em ${fmtDate(t.payment_date || t.date)}` : `Pago em ${fmtDate(t.payment_date || t.date)}`)
+        : (st === 'overdue'
+            ? (isIncome ? `Atrasada desde ${fmtDate(due)}` : `Venceu ${fmtDate(due)}`)
+            : (st === 'today'
+                ? (isIncome ? 'Recebe hoje' : 'Vence hoje')
+                : (isIncome ? `Recebe ${fmtDate(due)}` : `Vence ${fmtDate(due)}`)));
     const dueClass = st === 'overdue' ? 'overdue' : (st === 'today' ? 'today' : '');
     const recTag = t.is_recurring ? '<span class="recurring-tag">🔁</span>' : '';
+    const typeIcon = isIncome ? '💵 ' : '';
     const checkIcon = isPaid(t)
         ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`
         : '';
+    const ariaCheck = isPaid(t)
+        ? (isIncome ? 'Marcar como a receber' : 'Marcar como pendente')
+        : (isIncome ? 'Marcar como recebida' : 'Marcar como pago');
     return `
-    <div class="bill-card ${stClass}" data-id="${t.id}">
-        <button class="bill-check" data-check="${t.id}" aria-label="${isPaid(t) ? 'Marcar como pendente' : 'Marcar como pago'}">${checkIcon}</button>
+    <div class="bill-card ${stClass} ${typeClass}" data-id="${t.id}">
+        <button class="bill-check" data-check="${t.id}" aria-label="${ariaCheck}">${checkIcon}</button>
         <div class="bill-info" data-open="${t.id}">
-            <div class="bill-title">${escapeHtml(groupLabelOf(t))} ${recTag}</div>
+            <div class="bill-title">${typeIcon}${escapeHtml(groupLabelOf(t))} ${recTag}</div>
             <div class="bill-meta">
                 <span class="bill-due ${dueClass}">📅 ${dueLabel}</span>
                 ${t.category ? `<span>· ${escapeHtml(t.category)}</span>` : ''}
             </div>
         </div>
-        <div class="bill-amount" data-open="${t.id}">${fmtMoney(t.amount)}</div>
+        <div class="bill-amount" data-open="${t.id}">${isIncome ? '+ ' : ''}${fmtMoney(t.amount)}</div>
     </div>`;
 }
 
