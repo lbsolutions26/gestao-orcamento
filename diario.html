@@ -554,6 +554,17 @@
         }
         .pay-btn.unpay { background: var(--text-light); }
         .pay-btn:active { transform: scale(0.95); }
+        .edit-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-right: 4px;
+        }
+        .edit-btn svg { width: 14px; height: 14px; stroke: var(--text-muted); }
+        .edit-btn:active { transform: scale(0.92); }
         .create-btn {
             background: var(--primary); color: white;
             border: none;
@@ -796,7 +807,7 @@
             <div class="modal-title" id="tx-modal-title">Novo Lançamento</div>
         </div>
         <div class="tx-modal-body">
-            <label>Descrição *</label>
+            <label>Descrição</label>
             <input id="tx-description" placeholder="Ex: Mercado, Salário" autocomplete="off">
 
             <label id="tx-supplier-label">Fornecedor</label>
@@ -838,6 +849,7 @@
         </div>
         <div class="tx-modal-footer">
             <button class="tx-btn-cancel" id="tx-btn-cancel">Cancelar</button>
+            <button class="tx-btn-cancel" id="tx-btn-delete" style="display:none; color:var(--danger); border-color:var(--danger) !important;">Excluir</button>
             <button class="tx-btn-save" id="tx-btn-save">Salvar</button>
         </div>
     </div>
@@ -1013,6 +1025,7 @@ const DEFAULT_PAYMENTS = ['Conta Corrente', 'Pix', 'Dinheiro', 'Cartão de Créd
 
 let txOptionsCache = { suppliers: null, clients: null, categoriesExpense: null, categoriesIncome: null, payments: null };
 let currentTxType = 'expense';
+let editingTx = null;
 
 async function loadTxOptions() {
     // Tenta carregar do supabase; se tabelas não existem, usa fallback
@@ -1050,21 +1063,25 @@ function fillSelect(selectId, options, includeCreate = true) {
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
 function escapeHtmlTx(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-async function openTxModal(type) {
+async function openTxModal(type, tx) {
     currentTxType = type;
-    document.getElementById('tx-modal-title').textContent = type === 'expense' ? 'Nova Despesa' : 'Nova Receita';
+    editingTx = tx || null;
+    const isEdit = !!tx;
+    document.getElementById('tx-modal-title').textContent = isEdit
+        ? (type === 'expense' ? 'Editar Despesa' : 'Editar Receita')
+        : (type === 'expense' ? 'Nova Despesa' : 'Nova Receita');
     const saveBtn = document.getElementById('tx-btn-save');
     saveBtn.className = 'tx-btn-save ' + type;
     document.getElementById('tx-supplier-label').textContent = type === 'expense' ? 'Fornecedor' : 'Cliente';
 
-    // Limpa
-    document.getElementById('tx-description').value = '';
-    document.getElementById('tx-amount').value = '';
-    document.getElementById('tx-notes').value = '';
-    document.getElementById('tx-status').value = 'pending';
+    // Pre-fill
+    document.getElementById('tx-description').value = tx?.description || '';
+    document.getElementById('tx-amount').value = tx?.amount ?? '';
+    document.getElementById('tx-notes').value = tx?.notes || '';
+    document.getElementById('tx-status').value = tx?.status || 'pending';
     const today = new Date().toISOString().slice(0,10);
-    document.getElementById('tx-date').value = today;
-    document.getElementById('tx-due-date').value = today;
+    document.getElementById('tx-date').value = tx?.date || today;
+    document.getElementById('tx-due-date').value = tx?.due_date || tx?.date || today;
 
     // Carrega opções (uma vez)
     if (txOptionsCache.suppliers === null) await loadTxOptions();
@@ -1074,9 +1091,18 @@ async function openTxModal(type) {
                                     : (txOptionsCache.categoriesIncome || DEFAULT_CATEGORIES.income);
     const pays = txOptionsCache.payments || DEFAULT_PAYMENTS;
 
-    fillSelect('tx-supplier', contacts);
-    fillSelect('tx-category', cats);
-    fillSelect('tx-payment', pays);
+    // Garante que valor atual aparece mesmo se ainda não cadastrado
+    const ensureIn = (arr, val) => (val && !arr.includes(val)) ? [val, ...arr] : arr;
+    fillSelect('tx-supplier', ensureIn(contacts, tx?.supplier));
+    fillSelect('tx-category', ensureIn(cats, tx?.category));
+    fillSelect('tx-payment', ensureIn(pays, tx?.payment_method));
+
+    document.getElementById('tx-supplier').value = tx?.supplier || '';
+    document.getElementById('tx-category').value = tx?.category || '';
+    document.getElementById('tx-payment').value = tx?.payment_method || '';
+
+    // Mostra/oculta botão excluir
+    document.getElementById('tx-btn-delete').style.display = isEdit ? '' : 'none';
 
     document.getElementById('tx-modal-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -1122,18 +1148,14 @@ async function handleSelectCreate(selectId, table, extraFields, reloadKey) {
 async function saveTransaction() {
     const description = document.getElementById('tx-description').value.trim();
     const amount = parseFloat(document.getElementById('tx-amount').value);
-    if (!description) { showToast('Informe a descrição', 'error'); return; }
     if (!amount || amount <= 0) { showToast('Informe um valor válido', 'error'); return; }
 
     const status = document.getElementById('tx-status').value;
     const date = document.getElementById('tx-date').value;
     const dueDate = document.getElementById('tx-due-date').value || date;
     const payload = {
-        user_id: state.user.id,
-        family_id: state.familyId,
-        added_by: state.user.id,
         type: currentTxType,
-        description,
+        description: description || null,
         supplier: document.getElementById('tx-supplier').value || null,
         amount,
         category: document.getElementById('tx-category').value || null,
@@ -1141,24 +1163,49 @@ async function saveTransaction() {
         due_date: dueDate,
         payment_method: document.getElementById('tx-payment').value || null,
         status,
-        payment_date: status === 'paid' ? date : null,
-        affects_balance: true,
-        is_bill_payment: false,
+        payment_date: status === 'paid' ? (editingTx?.payment_date || date) : null,
         notes: document.getElementById('tx-notes').value.trim() || null
     };
 
     const btn = document.getElementById('tx-btn-save');
     btn.disabled = true; btn.textContent = 'Salvando...';
-    const { error } = await supabaseClient.from('transactions').insert([payload]);
+    let error;
+    if (editingTx) {
+        ({ error } = await supabaseClient.from('transactions').update(payload).eq('id', editingTx.id));
+    } else {
+        payload.user_id = state.user.id;
+        payload.family_id = state.familyId;
+        payload.added_by = state.user.id;
+        payload.affects_balance = true;
+        payload.is_bill_payment = false;
+        ({ error } = await supabaseClient.from('transactions').insert([payload]));
+    }
     btn.disabled = false; btn.textContent = 'Salvar';
     if (error) {
         console.error(error);
         showToast('Erro: ' + error.message, 'error');
         return;
     }
-    showToast(currentTxType === 'expense' ? 'Despesa adicionada' : 'Receita adicionada', 'success');
+    showToast(editingTx ? 'Atualizado' : (currentTxType === 'expense' ? 'Despesa adicionada' : 'Receita adicionada'), 'success');
     closeTxModal();
     await loadAll();
+    // Se estávamos no modal de detalhes, atualiza
+    if (state.currentGroupKey) {
+        renderModalHistory();
+    }
+}
+
+async function deleteCurrentTx() {
+    if (!editingTx) return;
+    if (!confirm('Excluir este lançamento?')) return;
+    const { error } = await supabaseClient.from('transactions').delete().eq('id', editingTx.id);
+    if (error) { showToast('Erro: ' + error.message, 'error'); return; }
+    showToast('Excluído', 'success');
+    closeTxModal();
+    await loadAll();
+    if (state.currentGroupKey) {
+        renderModalHistory();
+    }
 }
 
 // Eventos do modal de transação
@@ -1169,6 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.id === 'tx-modal-overlay') closeTxModal();
     });
     document.getElementById('tx-btn-save').addEventListener('click', saveTransaction);
+    document.getElementById('tx-btn-delete').addEventListener('click', deleteCurrentTx);
 
     document.getElementById('tx-supplier').addEventListener('change', e => {
         if (e.target.value === '__new__') {
@@ -1626,6 +1674,7 @@ function renderModalHistory() {
         const btn = isPaid(t)
             ? `<button class="pay-btn unpay" data-toggle="${t.id}">Desfazer</button>`
             : `<button class="pay-btn" data-toggle="${t.id}">Marcar pago</button>`;
+        const editBtn = `<button class="edit-btn" data-edit="${t.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
 
         return `
         <div class="history-row ${stClass}">
@@ -1634,7 +1683,7 @@ function renderModalHistory() {
                 <strong>${fmtMoney(t.amount)}</strong>
                 <span class="history-status ${stClass}">${stLabel}</span>
             </div>
-            <div class="history-action">${btn}</div>
+            <div class="history-action">${editBtn}${btn}</div>
         </div>`;
     }).join('');
 
@@ -1642,6 +1691,12 @@ function renderModalHistory() {
     box.innerHTML = html;
     box.querySelectorAll('[data-toggle]').forEach(b => {
         b.addEventListener('click', () => togglePaid(Number(b.dataset.toggle)));
+    });
+    box.querySelectorAll('[data-edit]').forEach(b => {
+        b.addEventListener('click', () => {
+            const tx = state.allTx.find(x => String(x.id) === b.dataset.edit);
+            if (tx) openTxModal(tx.type, tx);
+        });
     });
 }
 
