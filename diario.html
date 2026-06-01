@@ -1327,7 +1327,7 @@ function renderBudgets() {
     const monthTx = txOfMonth(state.allTx, state.viewYear, state.viewMonth);
     const expenseTx = monthTx.filter(t => t.type === 'expense' && t.affects_balance !== false);
     
-    // Criar lista de itens: um para cada budget + categorias sem budget mas com gasto > 50
+    // Criar lista de itens com os orçamentos cadastrados
     const items = [];
     
     // Adicionar todos os budgets
@@ -1359,32 +1359,8 @@ function renderBudgets() {
             spent,
             remaining,
             percentage: Math.min(percentage, 100),
-            progressClass,
-            hasBudget: true
+            progressClass
         });
-    });
-    
-    // Adicionar categorias sem budget mas com gasto > 50
-    const spentByCategory = {};
-    expenseTx.forEach(t => {
-        const cat = t.category || 'Sem categoria';
-        spentByCategory[cat] = (spentByCategory[cat] || 0) + parseFloat(t.amount || 0);
-    });
-    
-    Object.keys(spentByCategory).forEach(category => {
-        const spent = spentByCategory[category];
-        if (spent > 50 && !state.budgets.some(b => b.category === category && !b.supplier)) {
-            items.push({
-                category,
-                supplier: null,
-                budgetAmount: 0,
-                spent,
-                remaining: 0,
-                percentage: 0,
-                progressClass: '',
-                hasBudget: false
-            });
-        }
     });
     
     if (items.length === 0) {
@@ -1414,14 +1390,12 @@ function renderBudgets() {
             <div class="budget-top">
                 <div class="budget-name" onclick="${onclickAttr}">${displayName}</div>
                 <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
-                    ${fmtMoney(item.spent)}${item.hasBudget ? ` / ${fmtMoney(item.budgetAmount)}` : ` <span style="opacity: 0.6;">(sem meta)</span>`}
+                    ${fmtMoney(item.spent)} / ${fmtMoney(item.budgetAmount)}
                 </div>
             </div>
-            ${item.hasBudget ? `
-                <div class="budget-bar">
-                    <div class="budget-progress ${item.progressClass}" style="width: ${item.percentage}%"></div>
-                </div>
-            ` : ''}
+            <div class="budget-bar">
+                <div class="budget-progress ${item.progressClass}" style="width: ${item.percentage}%"></div>
+            </div>
         </div>
     `;
     }).join('');
