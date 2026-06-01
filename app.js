@@ -524,6 +524,10 @@ async function handleLogin(e) {
         if (hasCache) {
             loginBtn.textContent = 'Pronto!';
             isInitialized = true;
+            if (!window.location.search.includes('stay')) {
+                window.location.replace('diario.html');
+                return;
+            }
             showScreen('app');
             applyScreenFromHash();
             
@@ -541,6 +545,10 @@ async function handleLogin(e) {
             await loadUserData();
             isInitialized = true;
             
+            if (!window.location.search.includes('stay')) {
+                window.location.replace('diario.html');
+                return;
+            }
             // Mostrar app
             showScreen('app');
             applyScreenFromHash();
