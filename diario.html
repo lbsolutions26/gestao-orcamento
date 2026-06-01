@@ -1043,7 +1043,6 @@ async function loadAll() {
         .from('transactions')
         .select('*')
         .eq('family_id', state.familyId)
-        .eq('type', 'expense')
         .order('date', { ascending: false });
     if (error) {
         console.error(error);
