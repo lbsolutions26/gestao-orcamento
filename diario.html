@@ -1283,13 +1283,19 @@ function txMonth(t) {
 function isPaid(t) { return (t.status || 'pending') === 'paid'; }
 
 // Chave de agrupamento "mesma conta entre meses"
+// Agrupa por fornecedor + descrição (mesma combinação = mesma conta recorrente)
 function groupKeyOf(t) {
     const supplier = (t.supplier || '').trim().toLowerCase();
+    const desc = (t.description || '').trim().toLowerCase();
+    if (supplier && desc) return 'sd::' + supplier + '||' + desc;
     if (supplier) return 'sup::' + supplier;
-    return 'desc::' + (t.description || '').trim().toLowerCase();
+    return 'desc::' + desc;
 }
 function groupLabelOf(t) {
-    return (t.supplier && t.supplier.trim()) || t.description || 'Sem nome';
+    const sup = (t.supplier || '').trim();
+    const desc = (t.description || '').trim();
+    if (sup && desc) return `${sup} — ${desc}`;
+    return sup || desc || 'Sem nome';
 }
 
 function dueStatus(t) {
