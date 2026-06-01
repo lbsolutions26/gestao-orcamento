@@ -94,6 +94,47 @@
         }
         .action-bar svg { width: 18px; height: 18px; }
 
+        /* ===== Form modal (novo lançamento) ===== */
+        .tx-modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+        .tx-modal-body label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin: 12px 0 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-weight: 600;
+        }
+        .tx-modal-body input, .tx-modal-body select, .tx-modal-body textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            font-family: inherit;
+        }
+        .tx-modal-body textarea { resize: vertical; min-height: 60px; }
+        .tx-modal-body .row-2 {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .tx-modal-footer {
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--border);
+            background: white;
+            display: flex; gap: 8px;
+        }
+        .tx-modal-footer button {
+            flex: 1; padding: 13px;
+            border-radius: 10px; border: none;
+            font-weight: 600; font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .tx-btn-cancel { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; }
+        .tx-btn-save { background: var(--primary); color: white; }
+        .tx-btn-save.expense { background: var(--danger); }
+        .tx-btn-save.income { background: var(--success); }
+
         /* ===== Loading ===== */
         .loading-screen {
             position: fixed; inset: 0;
@@ -746,6 +787,62 @@
     </button>
 </div>
 
+<!-- Modal: novo lançamento -->
+<div id="tx-modal-overlay" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="tx-modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="tx-modal-title">Novo Lançamento</div>
+        </div>
+        <div class="tx-modal-body">
+            <label>Descrição *</label>
+            <input id="tx-description" placeholder="Ex: Mercado, Salário" autocomplete="off">
+
+            <label id="tx-supplier-label">Fornecedor</label>
+            <select id="tx-supplier"></select>
+
+            <div class="row-2">
+                <div>
+                    <label>Valor (R$) *</label>
+                    <input id="tx-amount" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal">
+                </div>
+                <div>
+                    <label>Categoria</label>
+                    <select id="tx-category"></select>
+                </div>
+            </div>
+
+            <div class="row-2">
+                <div>
+                    <label>Lançamento</label>
+                    <input id="tx-date" type="date">
+                </div>
+                <div>
+                    <label>Vencimento</label>
+                    <input id="tx-due-date" type="date">
+                </div>
+            </div>
+
+            <label>Forma de pagamento</label>
+            <select id="tx-payment"></select>
+
+            <label>Status</label>
+            <select id="tx-status">
+                <option value="pending">Pendente</option>
+                <option value="paid">Pago</option>
+            </select>
+
+            <label>Observações</label>
+            <textarea id="tx-notes" placeholder="Opcional"></textarea>
+        </div>
+        <div class="tx-modal-footer">
+            <button class="tx-btn-cancel" id="tx-btn-cancel">Cancelar</button>
+            <button class="tx-btn-save" id="tx-btn-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Drawer (menu lateral) -->
 <div id="drawer-overlay" class="drawer-overlay"></div>
 <aside id="drawer" class="drawer" aria-hidden="true">
@@ -892,12 +989,8 @@ function setupEvents() {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
 
     // Barra de ações inferior → redireciona para dashboard abrindo o modal
-    document.getElementById('btn-add-expense').addEventListener('click', () => {
-        window.location.href = 'index.html?stay&add=expense';
-    });
-    document.getElementById('btn-add-income').addEventListener('click', () => {
-        window.location.href = 'index.html?stay&add=income';
-    });
+    document.getElementById('btn-add-expense').addEventListener('click', () => openTxModal('expense'));
+    document.getElementById('btn-add-income').addEventListener('click', () => openTxModal('income'));
 }
 
 function openDrawer() {
@@ -910,6 +1003,193 @@ function closeDrawer() {
     document.getElementById('drawer-overlay').classList.remove('open');
     document.body.style.overflow = '';
 }
+
+// ====== Modal: novo lançamento ======
+const DEFAULT_CATEGORIES = {
+    expense: ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Educação', 'Outros'],
+    income: ['Salário', 'Freelance', 'Investimentos', 'Presente', 'Outros']
+};
+const DEFAULT_PAYMENTS = ['Conta Corrente', 'Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto'];
+
+let txOptionsCache = { suppliers: null, clients: null, categoriesExpense: null, categoriesIncome: null, payments: null };
+let currentTxType = 'expense';
+
+async function loadTxOptions() {
+    // Tenta carregar do supabase; se tabelas não existem, usa fallback
+    try {
+        const [contactsRes, catsRes, paysRes] = await Promise.all([
+            supabaseClient.from('contacts').select('name, kind').eq('family_id', state.familyId),
+            supabaseClient.from('categories').select('name, type').eq('family_id', state.familyId),
+            supabaseClient.from('payment_methods').select('name').eq('family_id', state.familyId)
+        ]);
+        if (contactsRes.data) {
+            txOptionsCache.suppliers = contactsRes.data.filter(c => c.kind === 'supplier').map(c => c.name).sort();
+            txOptionsCache.clients = contactsRes.data.filter(c => c.kind === 'client').map(c => c.name).sort();
+        }
+        if (catsRes.data) {
+            txOptionsCache.categoriesExpense = catsRes.data.filter(c => c.type === 'expense').map(c => c.name).sort();
+            txOptionsCache.categoriesIncome = catsRes.data.filter(c => c.type === 'income').map(c => c.name).sort();
+        }
+        if (paysRes.data) {
+            txOptionsCache.payments = paysRes.data.map(p => p.name).sort();
+        }
+    } catch (e) {
+        console.warn('Tabelas de cadastros não disponíveis, usando padrões', e);
+    }
+}
+
+function fillSelect(selectId, options, includeCreate = true) {
+    const sel = document.getElementById(selectId);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Selecione...</option>'
+        + (includeCreate ? '<option value="__new__">➕ Cadastrar novo...</option>' : '')
+        + options.map(o => `<option value="${escapeAttr(o)}">${escapeHtmlTx(o)}</option>`).join('');
+    if (current && options.includes(current)) sel.value = current;
+}
+
+function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+function escapeHtmlTx(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function openTxModal(type) {
+    currentTxType = type;
+    document.getElementById('tx-modal-title').textContent = type === 'expense' ? 'Nova Despesa' : 'Nova Receita';
+    const saveBtn = document.getElementById('tx-btn-save');
+    saveBtn.className = 'tx-btn-save ' + type;
+    document.getElementById('tx-supplier-label').textContent = type === 'expense' ? 'Fornecedor' : 'Cliente';
+
+    // Limpa
+    document.getElementById('tx-description').value = '';
+    document.getElementById('tx-amount').value = '';
+    document.getElementById('tx-notes').value = '';
+    document.getElementById('tx-status').value = 'pending';
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('tx-date').value = today;
+    document.getElementById('tx-due-date').value = today;
+
+    // Carrega opções (uma vez)
+    if (txOptionsCache.suppliers === null) await loadTxOptions();
+
+    const contacts = type === 'expense' ? (txOptionsCache.suppliers || []) : (txOptionsCache.clients || []);
+    const cats = type === 'expense' ? (txOptionsCache.categoriesExpense || DEFAULT_CATEGORIES.expense)
+                                    : (txOptionsCache.categoriesIncome || DEFAULT_CATEGORIES.income);
+    const pays = txOptionsCache.payments || DEFAULT_PAYMENTS;
+
+    fillSelect('tx-supplier', contacts);
+    fillSelect('tx-category', cats);
+    fillSelect('tx-payment', pays);
+
+    document.getElementById('tx-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTxModal() {
+    document.getElementById('tx-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+async function handleSelectCreate(selectId, table, extraFields, reloadKey) {
+    const sel = document.getElementById(selectId);
+    const label = sel.previousElementSibling.textContent.replace(' *', '').replace('Selecione...', '');
+    const name = prompt(`Cadastrar novo ${label.toLowerCase()}:`);
+    if (!name || !name.trim()) { sel.value = ''; return; }
+    const payload = { family_id: state.familyId, name: name.trim(), ...extraFields };
+    const { error } = await supabaseClient.from(table).insert([payload]);
+    if (error) {
+        if (error.code === '23505') {
+            showToast('Já cadastrado', 'error');
+        } else {
+            showToast('Erro: ' + error.message, 'error');
+            console.error(error);
+        }
+        sel.value = '';
+        return;
+    }
+    showToast('Cadastrado!', 'success');
+    // Invalida cache da chave + recarrega opções
+    txOptionsCache[reloadKey] = null;
+    await loadTxOptions();
+    // Recarrega o select e seleciona o novo
+    const contacts = currentTxType === 'expense' ? (txOptionsCache.suppliers || []) : (txOptionsCache.clients || []);
+    const cats = currentTxType === 'expense' ? (txOptionsCache.categoriesExpense || DEFAULT_CATEGORIES.expense)
+                                              : (txOptionsCache.categoriesIncome || DEFAULT_CATEGORIES.income);
+    const pays = txOptionsCache.payments || DEFAULT_PAYMENTS;
+    if (selectId === 'tx-supplier') fillSelect(selectId, contacts);
+    else if (selectId === 'tx-category') fillSelect(selectId, cats);
+    else fillSelect(selectId, pays);
+    sel.value = name.trim();
+}
+
+async function saveTransaction() {
+    const description = document.getElementById('tx-description').value.trim();
+    const amount = parseFloat(document.getElementById('tx-amount').value);
+    if (!description) { showToast('Informe a descrição', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('Informe um valor válido', 'error'); return; }
+
+    const status = document.getElementById('tx-status').value;
+    const date = document.getElementById('tx-date').value;
+    const dueDate = document.getElementById('tx-due-date').value || date;
+    const payload = {
+        user_id: state.user.id,
+        family_id: state.familyId,
+        added_by: state.user.id,
+        type: currentTxType,
+        description,
+        supplier: document.getElementById('tx-supplier').value || null,
+        amount,
+        category: document.getElementById('tx-category').value || null,
+        date,
+        due_date: dueDate,
+        payment_method: document.getElementById('tx-payment').value || null,
+        status,
+        payment_date: status === 'paid' ? date : null,
+        affects_balance: true,
+        is_bill_payment: false,
+        notes: document.getElementById('tx-notes').value.trim() || null
+    };
+
+    const btn = document.getElementById('tx-btn-save');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    const { error } = await supabaseClient.from('transactions').insert([payload]);
+    btn.disabled = false; btn.textContent = 'Salvar';
+    if (error) {
+        console.error(error);
+        showToast('Erro: ' + error.message, 'error');
+        return;
+    }
+    showToast(currentTxType === 'expense' ? 'Despesa adicionada' : 'Receita adicionada', 'success');
+    closeTxModal();
+    await loadAll();
+}
+
+// Eventos do modal de transação
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('tx-modal-close').addEventListener('click', closeTxModal);
+    document.getElementById('tx-btn-cancel').addEventListener('click', closeTxModal);
+    document.getElementById('tx-modal-overlay').addEventListener('click', e => {
+        if (e.target.id === 'tx-modal-overlay') closeTxModal();
+    });
+    document.getElementById('tx-btn-save').addEventListener('click', saveTransaction);
+
+    document.getElementById('tx-supplier').addEventListener('change', e => {
+        if (e.target.value === '__new__') {
+            handleSelectCreate('tx-supplier', 'contacts',
+                { kind: currentTxType === 'expense' ? 'supplier' : 'client' },
+                currentTxType === 'expense' ? 'suppliers' : 'clients');
+        }
+    });
+    document.getElementById('tx-category').addEventListener('change', e => {
+        if (e.target.value === '__new__') {
+            handleSelectCreate('tx-category', 'categories',
+                { type: currentTxType },
+                currentTxType === 'expense' ? 'categoriesExpense' : 'categoriesIncome');
+        }
+    });
+    document.getElementById('tx-payment').addEventListener('change', e => {
+        if (e.target.value === '__new__') {
+            handleSelectCreate('tx-payment', 'payment_methods', {}, 'payments');
+        }
+    });
+});
 
 function shiftMonth(delta) {
     let m = state.viewMonth + delta;
