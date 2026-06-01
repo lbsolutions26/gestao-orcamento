@@ -22,6 +22,13 @@ CREATE INDEX IF NOT EXISTS category_budgets_family_idx
 -- RLS: apenas membros da família podem ver/editar budgets
 ALTER TABLE public.category_budgets ENABLE ROW LEVEL SECURITY;
 
+-- Remove políticas antigas se existirem
+DROP POLICY IF EXISTS "Usuários podem ver budgets da própria família" ON public.category_budgets;
+DROP POLICY IF EXISTS "Usuários podem criar budgets da própria família" ON public.category_budgets;
+DROP POLICY IF EXISTS "Usuários podem atualizar budgets da própria família" ON public.category_budgets;
+DROP POLICY IF EXISTS "Usuários podem deletar budgets da própria família" ON public.category_budgets;
+
+-- Cria políticas
 CREATE POLICY "Usuários podem ver budgets da própria família"
 ON public.category_budgets FOR SELECT
 USING (
