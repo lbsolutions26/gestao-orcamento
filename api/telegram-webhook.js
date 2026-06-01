@@ -116,20 +116,29 @@ async function handleCallback(callback, supabase, botToken) {
   });
 
   // Callbacks de transação confirmada
-  if (data.startsWith('tx:')) {
-    const encoded = data.replace('tx:', '');
+  // tx:  → paga | txp: → pendente
+  if (data.startsWith('tx:') || data.startsWith('txp:')) {
+    const pending = data.startsWith('txp:');
+    const encoded = data.replace(/^txp?:/, '');
     try {
       const decoded = Buffer.from(encoded, 'base64').toString('utf-8');
-      // Formato: tipo|valor|cat|metodo|desc
+      // Formato novo: tipo|valor|cat|metodo|sup|desc
+      // Formato legado: tipo|valor|cat|metodo|desc (sem fornecedor)
       const partes = decoded.split('|');
       if (partes.length >= 5) {
-        const txData = {
-          t: partes[0] === 'e' ? 'expense' : 'income',
-          a: parseFloat(partes[1]),
-          c: partes[2],
-          p: partes[3],
-          d: partes.slice(4).join('|') // descrição pode ter | internamente
-        };
+        const tipo = partes[0] === 'e' ? 'expense' : 'income';
+        const a = parseFloat(partes[1]);
+        const c = partes[2];
+        const p = partes[3];
+        let s = '';
+        let d = '';
+        if (partes.length >= 6) {
+          s = partes[4];
+          d = partes.slice(5).join('|');
+        } else {
+          d = partes.slice(4).join('|');
+        }
+        const txData = { t: tipo, a, c, p, s, d, st: pending ? 'pending' : 'paid' };
         return confirmarTransacao(botToken, chatId, supabase, user, txData);
       }
     } catch (err) {
@@ -197,7 +206,11 @@ async function sendAjuda(botToken, chatId) {
 
 💸 *Adicionar transações:*
 /despesa 50 Almoço no shopping
+/despesa 1924 Tieda - Pensão  _(Fornecedor - Descrição)_
 /receita 3000 Salário
+
+Após o comando, escolha:
+✅ Paga  |  📅 Pendente  |  ❌ Cancelar
 
 🤖 *Perguntas livres:*
 Digite qualquer pergunta que a IA responde com base nos seus dados.
@@ -343,18 +356,27 @@ async function sugerirTransacao(botToken, chatId, supabase, user, text, tipo) {
 
   // Extrair valor e descrição (formato flexível)
   let valor = null;
-  let descricaoInput = semCmd;
+  let restoInput = semCmd;
   
   const matchValor = semCmd.match(/^([\d.,]+)\s+(.+)$/);
   if (matchValor) {
     const valorStr = matchValor[1].replace(/\./g, '').replace(',', '.');
     valor = parseFloat(valorStr);
-    descricaoInput = matchValor[2].trim();
+    restoInput = matchValor[2].trim();
   }
 
-  if (!descricaoInput) {
+  // Atalho: "Fornecedor - Descrição" separados por hífen
+  let fornecedorInput = '';
+  let descricaoInput = restoInput;
+  const matchHifen = restoInput.match(/^([^-]+?)\s+-\s+(.+)$/);
+  if (matchHifen) {
+    fornecedorInput = matchHifen[1].trim();
+    descricaoInput = matchHifen[2].trim();
+  }
+
+  if (!restoInput) {
     return sendMessage(botToken, chatId,
-      `❌ Formato inválido.\n\nUse:\n\`/${tipo === 'expense' ? 'despesa' : 'receita'} <valor> <descrição>\`\n\nEx: \`/${tipo === 'expense' ? 'despesa' : 'receita'} 50 Almoço\``,
+      `❌ Formato inválido.\n\nUse:\n\`/${tipo === 'expense' ? 'despesa' : 'receita'} <valor> <descrição>\`\n\nEx: \`/${tipo === 'expense' ? 'despesa' : 'receita'} 50 Almoço\`\nOu: \`/${tipo === 'expense' ? 'despesa' : 'receita'} 1924 Tieda - Pensão\``,
       { parse_mode: 'Markdown' }
     );
   }
@@ -363,9 +385,12 @@ async function sugerirTransacao(botToken, chatId, supabase, user, text, tipo) {
   const { familyId } = await getUserScope(supabase, user.id);
   const filtro = familyId ? { col: 'family_id', val: familyId } : { col: 'user_id', val: user.id };
 
+  // Carregar cadastros (fonte de verdade)
+  const cadastros = await carregarCadastros(supabase, familyId, tipo);
+
   const { data: historico } = await supabase
     .from('transactions')
-    .select('description, amount, category, payment_method, type')
+    .select('description, amount, category, payment_method, supplier, type')
     .eq(filtro.col, filtro.val)
     .eq('type', tipo)
     .order('date', { ascending: false })
@@ -375,35 +400,53 @@ async function sugerirTransacao(botToken, chatId, supabase, user, text, tipo) {
 
   // Se tem IA, usar para sugerir
   let sugestao = null;
-  if (aiToken && lista.length > 0) {
-    // Buscar transações com descrição similar
-    const similares = lista.filter(t => 
-      t.description.toLowerCase().includes(descricaoInput.toLowerCase()) ||
-      descricaoInput.toLowerCase().includes(t.description.toLowerCase().split(' ')[0])
-    ).slice(0, 10);
+  if (aiToken && (lista.length > 0 || cadastros.categorias.length > 0)) {
+    // Buscar transações com descrição/fornecedor similar
+    const alvoTexto = `${fornecedorInput} ${descricaoInput}`.toLowerCase().trim();
+    const similares = lista.filter(t => {
+      const desc = (t.description || '').toLowerCase();
+      const sup = (t.supplier || '').toLowerCase();
+      if (fornecedorInput && sup && (sup.includes(fornecedorInput.toLowerCase()) || fornecedorInput.toLowerCase().includes(sup))) return true;
+      if (descricaoInput && desc) {
+        if (desc.includes(descricaoInput.toLowerCase())) return true;
+        if (descricaoInput.toLowerCase().includes(desc.split(' ')[0])) return true;
+      }
+      if (alvoTexto && (desc.includes(alvoTexto.split(' ')[0]) || sup.includes(alvoTexto.split(' ')[0]))) return true;
+      return false;
+    }).slice(0, 10);
 
-    if (similares.length > 0) {
+    {
       const prompt = `Analisar lançamento financeiro e sugerir melhorias.
 
 ENTRADA DO USUÁRIO:
 Tipo: ${tipo === 'expense' ? 'Despesa' : 'Receita'}
 Valor informado: ${valor ? `R$ ${fmt(valor)}` : 'NÃO INFORMADO'}
+Fornecedor informado: ${fornecedorInput || '(não informado — deduzir do histórico)'}
 Descrição: "${descricaoInput}"
 
+CADASTROS DISPONÍVEIS (USE EXATAMENTE ESTES NOMES):
+- ${tipo === 'expense' ? 'Fornecedores' : 'Clientes'}: ${cadastros.contatos.join(', ') || '(nenhum)'}
+- Categorias: ${cadastros.categorias.join(', ') || '(nenhuma)'}
+- Métodos de pagamento: ${cadastros.metodos.join(', ') || '(nenhum)'}
+
 HISTÓRICO DE TRANSAÇÕES SIMILARES (${similares.length}):
-${similares.map(t => `- ${t.description}: R$ ${fmt(parseFloat(t.amount))} | Categoria: ${t.category} | Método: ${t.payment_method || 'Conta Corrente'}`).join('\n')}
+${similares.map(t => `- [${t.supplier || '-'}] ${t.description || '(sem descrição)'}: R$ ${fmt(parseFloat(t.amount))} | Categoria: ${t.category} | Método: ${t.payment_method || 'Conta Corrente'}`).join('\n') || '(nenhum similar)'}
 
 TAREFA:
-Com base no histórico, responda em formato JSON puro (sem markdown):
+Responda APENAS JSON puro (sem markdown):
 {
-  "descricao_sugerida": "descrição completa e consistente com histórico",
-  "valor_sugerido": número (se não informado, use o mais comum do histórico),
-  "categoria": "categoria do histórico ou 'Outros'",
-  "metodo_pagamento": "método mais usado no histórico ou 'Conta Corrente'",
-  "observacao": "texto curto explicando sugestões OU null se input está perfeito"
+  "fornecedor_sugerido": "nome do fornecedor/cliente (use cadastro se existir similar) ou string vazia",
+  "descricao_sugerida": "descrição curta e clara (pode ser vazia se redundante com fornecedor)",
+  "valor_sugerido": número (se não informado, use o mais comum do histórico para esse fornecedor/descrição),
+  "categoria": "categoria EXATA do cadastro ou 'Outros'",
+  "metodo_pagamento": "método EXATO do cadastro ou 'Conta Corrente'",
+  "observacao": "texto curto explicando deduções OU null"
 }
 
-Exemplo de observacao: "Geralmente essa despesa é de R$ 850,00" ou "Categoria sugerida: Pensão (baseado em histórico)" ou null`;
+Regras:
+- Se a descrição contém um nome próprio (ex: "Tieda", "Mercado Atacadão"), trate como fornecedor.
+- Prefira nomes EXATOS dos cadastros existentes (case-sensitive).
+- Descrição é opcional; se o fornecedor já diz tudo, deixe vazia.`;
 
       try {
         const resp = await fetch(AI_API_URL, {
@@ -437,7 +480,8 @@ Exemplo de observacao: "Geralmente essa despesa é de R$ 850,00" ou "Categoria s
   }
 
   // Aplicar sugestões ou usar defaults
-  const descricaoFinal = sugestao?.descricao_sugerida || descricaoInput;
+  const fornecedorFinal = (sugestao?.fornecedor_sugerido || fornecedorInput || '').trim();
+  const descricaoFinal = (sugestao?.descricao_sugerida ?? descricaoInput ?? '').trim();
   const valorFinal = valor || sugestao?.valor_sugerido || null;
   const categoriaFinal = sugestao?.categoria || 'Outros';
   const metodoFinal = sugestao?.metodo_pagamento || 'Conta Corrente';
@@ -446,14 +490,19 @@ Exemplo de observacao: "Geralmente essa despesa é de R$ 850,00" ou "Categoria s
   if (!valorFinal || valorFinal <= 0) {
     return sendMessage(botToken, chatId, '❌ Valor não informado ou inválido. Use:\n`/despesa 50 Descrição`', { parse_mode: 'Markdown' });
   }
+  if (!fornecedorFinal && !descricaoFinal) {
+    return sendMessage(botToken, chatId, '❌ Informe um fornecedor ou descrição.', { parse_mode: 'Markdown' });
+  }
 
   // Montar mensagem de confirmação
   const emoji = tipo === 'expense' ? '💸' : '💵';
   const label = tipo === 'expense' ? 'Despesa' : 'Receita';
+  const supLabel = tipo === 'expense' ? 'Fornecedor' : 'Cliente';
   const hoje = new Date().toLocaleDateString('pt-BR');
   
   let mensagem = `${emoji} *Confirmar ${label}?*\n\n`;
-  mensagem += `• Descrição: ${descricaoFinal}\n`;
+  if (fornecedorFinal) mensagem += `• ${supLabel}: ${fornecedorFinal}\n`;
+  if (descricaoFinal) mensagem += `• Descrição: ${descricaoFinal}\n`;
   mensagem += `• Valor: *R$ ${fmt(valorFinal)}*\n`;
   mensagem += `• Categoria: ${categoriaFinal}\n`;
   mensagem += `• Data: ${hoje}\n`;
@@ -464,27 +513,33 @@ Exemplo de observacao: "Geralmente essa despesa é de R$ 850,00" ou "Categoria s
   }
 
   // Codificar dados para o callback (compacto para limite de 64 bytes)
-  // Formato: tipo|valor|cat|metodo|desc (truncar desc se necessário)
-  let descCompacta = descricaoFinal.substring(0, 20); // limitar
-  const compacto = `${tipo === 'expense' ? 'e' : 'r'}|${valorFinal}|${categoriaFinal.substring(0,10)}|${metodoFinal.substring(0,10)}|${descCompacta}`;
+  // Formato: tipo|valor|cat|metodo|sup|desc (truncados)
+  const supCompacto = (fornecedorFinal || '').substring(0, 12);
+  const descCompacta = (descricaoFinal || '').substring(0, 15);
+  const compacto = `${tipo === 'expense' ? 'e' : 'r'}|${valorFinal}|${categoriaFinal.substring(0,10)}|${metodoFinal.substring(0,10)}|${supCompacto}|${descCompacta}`;
   const encoded = Buffer.from(compacto).toString('base64');
   
-  const callbackData = `tx:${encoded}`;
+  const callbackPago = `tx:${encoded}`;
+  const callbackPendente = `txp:${encoded}`;
   
-  // Se ainda assim passar de 64, salvar direto
-  if (callbackData.length > 64) {
-    const txData = { t: tipo, d: descricaoFinal, a: valorFinal, c: categoriaFinal, p: metodoFinal };
+  // Se passar de 64 bytes em algum, fallback: salvar como paga direto
+  if (callbackPago.length > 64 || callbackPendente.length > 64) {
+    const txData = { t: tipo, d: descricaoFinal, a: valorFinal, c: categoriaFinal, p: metodoFinal, s: fornecedorFinal, st: 'paid' };
     return confirmarTransacao(botToken, chatId, supabase, user, txData);
   }
 
-  const teclado = {
-    inline_keyboard: [
-      [
-        { text: '✅ Confirmar', callback_data: callbackData },
+  const linhaBotoes = tipo === 'expense'
+    ? [
+        { text: '✅ Paga', callback_data: callbackPago },
+        { text: '📅 Pendente', callback_data: callbackPendente },
         { text: '❌ Cancelar', callback_data: 'cancel' }
       ]
-    ]
-  };
+    : [
+        { text: '✅ Confirmar', callback_data: callbackPago },
+        { text: '❌ Cancelar', callback_data: 'cancel' }
+      ];
+
+  const teclado = { inline_keyboard: [ linhaBotoes ] };
 
   return sendMessage(botToken, chatId, mensagem, {
     parse_mode: 'Markdown',
@@ -492,23 +547,68 @@ Exemplo de observacao: "Geralmente essa despesa é de R$ 850,00" ou "Categoria s
   });
 }
 
+// Carrega cadastros (fonte de verdade) para uma família
+async function carregarCadastros(supabase, familyId, tipo) {
+  const vazio = { contatos: [], categorias: [], metodos: [] };
+  if (!familyId) return vazio;
+  try {
+    const kind = tipo === 'expense' ? 'supplier' : 'client';
+    const [ct, cat, pm] = await Promise.all([
+      supabase.from('contacts').select('name').eq('family_id', familyId).eq('kind', kind).limit(200),
+      supabase.from('categories').select('name').eq('family_id', familyId).eq('type', tipo).limit(200),
+      supabase.from('payment_methods').select('name').eq('family_id', familyId).limit(100)
+    ]);
+    return {
+      contatos: (ct.data || []).map(r => r.name),
+      categorias: (cat.data || []).map(r => r.name),
+      metodos: (pm.data || []).map(r => r.name)
+    };
+  } catch (err) {
+    console.error('Erro ao carregar cadastros:', err);
+    return vazio;
+  }
+}
+
+// Cria cadastro se não existir (best-effort, ignora erros)
+async function garantirCadastro(supabase, familyId, tipo, { supplier, category, payment_method }) {
+  if (!familyId) return;
+  const tasks = [];
+  if (supplier && supplier.trim()) {
+    const kind = tipo === 'expense' ? 'supplier' : 'client';
+    tasks.push(supabase.from('contacts').insert({ family_id: familyId, name: supplier.trim(), kind }));
+  }
+  if (category && category.trim() && category.trim() !== 'Outros') {
+    tasks.push(supabase.from('categories').insert({ family_id: familyId, name: category.trim(), type: tipo }));
+  }
+  if (payment_method && payment_method.trim()) {
+    tasks.push(supabase.from('payment_methods').insert({ family_id: familyId, name: payment_method.trim() }));
+  }
+  // ignora erros (provavelmente unique violation = já existe)
+  await Promise.all(tasks.map(p => p.then(() => {}).catch(() => {})));
+}
+
 async function confirmarTransacao(botToken, chatId, supabase, user, txData) {
   const { familyId } = await getUserScope(supabase, user.id);
   const hoje = new Date().toISOString().split('T')[0];
 
   const tipo = txData.t;
+  const status = txData.st === 'pending' ? 'pending' : 'paid';
+  const supplier = (txData.s || '').trim() || null;
+  const description = (txData.d || '').trim() || null;
+
   const payload = {
     user_id: user.id,
     type: tipo,
-    description: txData.d,
+    description,
+    supplier,
     amount: txData.a,
     category: txData.c,
     date: hoje,
     due_date: hoje,
     payment_method: txData.p,
     affects_balance: true,
-    status: 'paid',
-    payment_date: hoje
+    status,
+    payment_date: status === 'paid' ? hoje : null
   };
   if (familyId) payload.family_id = familyId;
 
@@ -519,15 +619,22 @@ async function confirmarTransacao(botToken, chatId, supabase, user, txData) {
     return sendMessage(botToken, chatId, `❌ Erro ao salvar: ${error.message}`);
   }
 
+  // Auto-cadastrar fornecedor/categoria/método (best-effort)
+  garantirCadastro(supabase, familyId, tipo, {
+    supplier,
+    category: txData.c,
+    payment_method: txData.p
+  }).catch(() => {});
+
   const emoji = tipo === 'expense' ? '💸' : '💵';
-  const label = tipo === 'expense' ? 'Despesa' : 'Receita';
-  return sendMessage(botToken, chatId,
-    `✅ ${emoji} *${label} registrada!*\n\n` +
-    `• ${txData.d}\n` +
-    `• R$ ${fmt(txData.a)}\n` +
-    `• ${txData.c}`,
-    { parse_mode: 'Markdown' }
-  );
+  const label = tipo === 'expense' ? 'Receita' : 'Receita';
+  const statusLabel = status === 'pending' ? ' (pendente)' : '';
+  const titulo = tipo === 'expense' ? `Despesa${statusLabel}` : `Receita${statusLabel}`;
+  let resposta = `✅ ${emoji} *${titulo} registrada!*\n\n`;
+  if (supplier) resposta += `• ${tipo === 'expense' ? 'Fornecedor' : 'Cliente'}: ${supplier}\n`;
+  if (description) resposta += `• Descrição: ${description}\n`;
+  resposta += `• R$ ${fmt(txData.a)}\n• ${txData.c}`;
+  return sendMessage(botToken, chatId, resposta, { parse_mode: 'Markdown' });
 }
 
 // ==========================================
