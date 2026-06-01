@@ -1705,7 +1705,7 @@ async function onRecurringToggle(e) {
 async function createFromRecurring(key) {
     const group = state.allTx.filter(t => groupKeyOf(t) === key);
     if (group.length === 0) return;
-    const last = group.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    const last = group.slice().sort((a, b) => ((b.due_date || b.date) || '').localeCompare((a.due_date || a.date) || ''))[0];
 
     // Calcula data de vencimento sugerida no mês visualizado
     let day = last.recurring_day;
@@ -1752,7 +1752,7 @@ async function createFromRecurring(key) {
 async function replicateRecurring(key) {
     const group = state.allTx.filter(t => groupKeyOf(t) === key);
     if (group.length === 0) return;
-    const last = group.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    const last = group.slice().sort((a, b) => ((b.due_date || b.date) || '').localeCompare((a.due_date || a.date) || ''))[0];
 
     const nStr = prompt('Quantos meses você quer replicar?\n(Serão criados a partir do mês seguinte ao último lançamento, pulando meses já lançados)', '12');
     if (nStr === null) return;
@@ -1936,6 +1936,9 @@ function renderModalHistory() {
             ? `<button class="pay-btn unpay" data-toggle="${t.id}">Desfazer</button>`
             : `<button class="pay-btn" data-toggle="${t.id}">Marcar pago</button>`;
         const editBtn = `<button class="edit-btn" data-edit="${t.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
+        const delBtn = !isPaid(t)
+            ? `<button class="edit-btn" data-delete="${t.id}" title="Excluir este mês" style="color:var(--danger); border-color:rgba(239,68,68,0.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button>`
+            : '';
 
         return `
         <div class="history-row ${stClass}">
@@ -1944,7 +1947,7 @@ function renderModalHistory() {
                 <strong>${fmtMoney(t.amount)}</strong>
                 <span class="history-status ${stClass}">${stLabel}</span>
             </div>
-            <div class="history-action">${editBtn}${btn}</div>
+            <div class="history-action">${editBtn}${delBtn}${btn}</div>
         </div>`;
     }).join('');
 
@@ -1957,6 +1960,22 @@ function renderModalHistory() {
         b.addEventListener('click', () => {
             const tx = state.allTx.find(x => String(x.id) === b.dataset.edit);
             if (tx) openTxModal(tx.type, tx);
+        });
+    });
+    box.querySelectorAll('[data-delete]').forEach(b => {
+        b.addEventListener('click', async () => {
+            const id = Number(b.dataset.delete);
+            const tx = state.allTx.find(x => x.id === id);
+            if (!tx) return;
+            const when = fmtDate(tx.due_date || tx.date);
+            if (!confirm(`Excluir o lançamento de ${when} no valor de ${fmtMoney(tx.amount)}?`)) return;
+            const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+            if (error) { showToast('Erro ao excluir', 'error'); console.error(error); return; }
+            state.allTx = state.allTx.filter(x => x.id !== id);
+            showToast('Mês excluído', 'success');
+            const remaining = state.allTx.find(x => groupKeyOf(x) === state.currentGroupKey);
+            render();
+            if (remaining) openDetail(remaining.id); else closeModal();
         });
     });
 }
