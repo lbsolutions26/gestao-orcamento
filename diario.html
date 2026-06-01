@@ -1291,6 +1291,23 @@ function groupKeyOf(t) {
     if (supplier) return 'sup::' + supplier;
     return 'desc::' + desc;
 }
+// Chaves alternativas (para casar lançamentos antigos sem fornecedor com os novos)
+// Ex.: tx antiga {desc:"Internet SM"} casa com nova {supplier:"Acenet", desc:"Internet SM"}
+function groupKeysOf(t) {
+    const supplier = (t.supplier || '').trim().toLowerCase();
+    const desc = (t.description || '').trim().toLowerCase();
+    const keys = [];
+    if (supplier && desc) {
+        keys.push('sd::' + supplier + '||' + desc);
+        keys.push('sup::' + supplier);
+        keys.push('desc::' + desc);
+    } else if (supplier) {
+        keys.push('sup::' + supplier);
+    } else if (desc) {
+        keys.push('desc::' + desc);
+    }
+    return keys;
+}
 function groupLabelOf(t) {
     const sup = (t.supplier || '').trim();
     const desc = (t.description || '').trim();
@@ -1386,12 +1403,18 @@ function renderRecurring(monthTx) {
     }
 
     // Sugestões: recorrentes que NÃO tem lançamento neste mês
-    const monthKeys = new Set(monthTx.map(groupKeyOf));
+    // Considera chaves alternativas (sup-only / desc-only) para casar com tx antigas
+    const monthKeys = new Set();
+    for (const t of monthTx) {
+        for (const k of groupKeysOf(t)) monthKeys.add(k);
+    }
     const suggestions = [];
     for (const [k, list] of recurringGroups) {
-        if (monthKeys.has(k)) continue;
         // Pega o último lançamento (mais recente) como base
         const last = list.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        // Se qualquer chave alternativa da recorrente bate com o mês, considera lançada
+        const altKeys = groupKeysOf(last);
+        if (altKeys.some(ak => monthKeys.has(ak))) continue;
         suggestions.push({ key: k, last });
     }
 
