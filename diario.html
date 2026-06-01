@@ -418,6 +418,21 @@
             font-weight: 600;
             flex-shrink: 0;
         }
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-left: 6px;
+            flex-shrink: 0;
+            min-width: 24px;
+            height: 18px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
         .bill-meta {
             display: flex; align-items: center; gap: 10px;
             font-size: 0.8rem;
@@ -1063,6 +1078,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const state = {
     user: null,
     familyId: null,
+    familyUsers: {},      // map: user_id -> { name, email }
     allTx: [],            // todas as despesas (todos os meses)
     viewYear: null,
     viewMonth: null,      // 0-11
@@ -1112,6 +1128,27 @@ async function loadFamily() {
     if (error || !data || data.length === 0) return;
     const member = data.find(f => f.role === 'member');
     state.familyId = (member || data[0]).family_id;
+    
+    // Carrega usuários da família
+    if (state.familyId) {
+        const { data: members } = await supabaseClient
+            .from('family_members')
+            .select('user_id')
+            .eq('family_id', state.familyId);
+        if (members) {
+            const userIds = members.map(m => m.user_id);
+            const { data: users } = await supabaseClient
+                .from('users')
+                .select('id, name, email')
+                .in('id', userIds);
+            if (users) {
+                state.familyUsers = {};
+                users.forEach(u => {
+                    state.familyUsers[u.id] = { name: u.name, email: u.email };
+                });
+            }
+        }
+    }
 }
 
 async function loadAll() {
@@ -1464,6 +1501,36 @@ function txMonth(t) {
 }
 function isPaid(t) { return (t.status || 'pending') === 'paid'; }
 
+// ===== Badge de usuário =====
+function getUserBadge(userId) {
+    if (!userId || userId === state.user.id) return ''; // não mostra para o próprio usuário
+    const user = state.familyUsers[userId];
+    if (!user) return '';
+    
+    const initials = getInitials(user.name || user.email);
+    const color = getUserColor(userId);
+    const title = user.name || user.email;
+    
+    return `<span class="user-badge" style="background:${color}" title="Criado por ${escapeHtml(title)}">${escapeHtml(initials)}</span>`;
+}
+
+function getInitials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getUserColor(userId) {
+    // Gera cor consistente baseada no userId
+    const colors = [
+        '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b',
+        '#10b981', '#06b6d4', '#6366f1', '#f97316'
+    ];
+    const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+}
+
 // Chave de agrupamento "mesma conta entre meses"
 // Agrupa por fornecedor + descrição (mesma combinação = mesma conta recorrente)
 function groupKeyOf(t) {
@@ -1710,11 +1777,15 @@ function billCardHTML(t) {
     const ariaCheck = isPaid(t)
         ? (isIncome ? 'Marcar como a receber' : 'Marcar como pendente')
         : (isIncome ? 'Marcar como recebida' : 'Marcar como pago');
+    
+    // Badge de quem criou
+    const creatorBadge = getUserBadge(t.user_id);
+    
     return `
     <div class="bill-card ${stClass} ${typeClass}" data-id="${t.id}">
         <button class="bill-check" data-check="${t.id}" aria-label="${ariaCheck}">${checkIcon}</button>
         <div class="bill-info" data-open="${t.id}">
-            <div class="bill-title">${typeIcon}${escapeHtml(groupLabelOf(t))} ${recTag}</div>
+            <div class="bill-title">${typeIcon}${escapeHtml(groupLabelOf(t))} ${recTag}${creatorBadge}</div>
             <div class="bill-meta">
                 <span class="bill-due ${dueClass}">📅 ${dueLabel}</span>
                 ${t.category ? `<span>· ${escapeHtml(t.category)}</span>` : ''}
