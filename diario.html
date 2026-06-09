@@ -736,6 +736,17 @@
         .history-status.pending { color: var(--warning); font-weight: 600; }
         .history-status.overdue { color: var(--danger); font-weight: 600; }
         .history-status.missing { color: var(--text-light); }
+        .history-multi-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.12);
+            padding: 1px 6px;
+            border-radius: 8px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
 
         .history-action {
             flex-shrink: 0;
@@ -2948,13 +2959,17 @@ function renderModalHistory() {
     if (!key) return;
     const group = state.allTx.filter(x => groupKeyOf(x) === key);
 
-    // Mapa "YYYY-MM" -> transação
+    // Mapa "YYYY-MM" -> ARRAY de transações (suporta múltiplos lançamentos no mesmo mês)
     const map = new Map();
     for (const t of group) {
         const { y, m } = txMonth(t);
         const k = `${y}-${String(m).padStart(2, '0')}`;
-        // Se já tem (raro: 2 contas mesmo mês), mantém a com maior amount
-        if (!map.has(k) || Number(map.get(k).amount) < Number(t.amount)) map.set(k, t);
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(t);
+    }
+    // Ordena lançamentos de cada mês por data crescente
+    for (const arr of map.values()) {
+        arr.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     }
 
     // Constrói intervalo de meses: do MAIOR entre (mês visualizado+1) e (último lançamento)
@@ -2980,10 +2995,10 @@ function renderModalHistory() {
 
     const html = months.map(({ y, m }) => {
         const k = `${y}-${String(m).padStart(2, '0')}`;
-        const t = map.get(k);
+        const txs = map.get(k);
         const monthShort = new Date(y, m, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
 
-        if (!t) {
+        if (!txs || txs.length === 0) {
             const isFuture = (y > todayY) || (y === todayY && m > todayM);
             return `
             <div class="history-row missing">
@@ -2995,29 +3010,42 @@ function renderModalHistory() {
             </div>`;
         }
 
-        const st = dueStatus(t);
-        const stClass = st === 'paid' ? 'paid' : (st === 'overdue' ? 'overdue' : 'pending');
-        const stLabel = st === 'paid'
-            ? `Pago ${fmtDate(t.payment_date || t.date)}`
-            : (st === 'overdue' ? `Vencida ${fmtDate(t.due_date || t.date)}` : `Vence ${fmtDate(t.due_date || t.date)}`);
+        // Renderiza uma linha por lançamento (suporta múltiplos no mesmo mês)
+        return txs.map((t, idx) => {
+            const st = dueStatus(t);
+            const stClass = st === 'paid' ? 'paid' : (st === 'overdue' ? 'overdue' : 'pending');
+            const stLabel = st === 'paid'
+                ? `Pago ${fmtDate(t.payment_date || t.date)}`
+                : (st === 'overdue' ? `Vencida ${fmtDate(t.due_date || t.date)}` : `Vence ${fmtDate(t.due_date || t.date)}`);
 
-        const btn = isPaid(t)
-            ? `<button class="pay-btn unpay" data-toggle="${t.id}">Desfazer</button>`
-            : `<button class="pay-btn" data-toggle="${t.id}">Marcar pago</button>`;
-        const editBtn = `<button class="edit-btn" data-edit="${t.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
-        const delBtn = !isPaid(t)
-            ? `<button class="edit-btn" data-delete="${t.id}" title="Excluir este mês" style="color:var(--danger); border-color:rgba(239,68,68,0.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button>`
-            : '';
+            const btn = isPaid(t)
+                ? `<button class="pay-btn unpay" data-toggle="${t.id}">Desfazer</button>`
+                : `<button class="pay-btn" data-toggle="${t.id}">Marcar pago</button>`;
+            const editBtn = `<button class="edit-btn" data-edit="${t.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
+            const delBtn = !isPaid(t)
+                ? `<button class="edit-btn" data-delete="${t.id}" title="Excluir este lançamento" style="color:var(--danger); border-color:rgba(239,68,68,0.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button>`
+                : '';
 
-        return `
-        <div class="history-row ${stClass}">
-            <div class="history-month">${monthShort}<small>${y}</small></div>
-            <div class="history-info">
-                <strong>${fmtMoney(t.amount)}</strong>
-                <span class="history-status ${stClass}">${stLabel}</span>
-            </div>
-            <div class="history-action">${editBtn}${delBtn}${btn}</div>
-        </div>`;
+            // Indicador quando há mais de um lançamento no mesmo mês
+            const multiBadge = txs.length > 1
+                ? `<span class="history-multi-badge" title="Lançamento ${idx + 1} de ${txs.length} neste mês">${idx + 1}/${txs.length}</span>`
+                : '';
+
+            // No primeiro item do mês mostra o rótulo; nos demais, fica vazio
+            const monthCell = idx === 0
+                ? `<div class="history-month">${monthShort}<small>${y}</small></div>`
+                : `<div class="history-month" style="opacity:.35;">${monthShort}<small>${y}</small></div>`;
+
+            return `
+            <div class="history-row ${stClass}">
+                ${monthCell}
+                <div class="history-info">
+                    <strong>${fmtMoney(t.amount)} ${multiBadge}</strong>
+                    <span class="history-status ${stClass}">${stLabel}</span>
+                </div>
+                <div class="history-action">${editBtn}${delBtn}${btn}</div>
+            </div>`;
+        }).join('');
     }).join('');
 
     const box = document.getElementById('modal-history');
