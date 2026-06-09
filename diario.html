@@ -1292,9 +1292,39 @@ async function checkAuth() {
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('app').classList.remove('hidden');
         document.getElementById('action-bar').classList.remove('hidden');
+        // Se vier ?edit=<id>, abre direto o modal de edição daquela transação
+        handleEditParam();
     } catch (e) {
         console.error(e);
         window.location.replace('index.html?stay');
+    }
+}
+
+function handleEditParam() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit');
+        if (!editId) return;
+        const tx = state.allTx.find(x => String(x.id) === String(editId));
+        if (!tx) {
+            showToast('Lançamento não encontrado', 'error');
+            return;
+        }
+        // Ajusta o mês visualizado para o mês da transação
+        const { y, m } = txMonth(tx);
+        if (typeof y === 'number' && typeof m === 'number') {
+            state.viewYear = y;
+            state.viewMonth = m;
+            render();
+        }
+        // Abre o modal de edição
+        openTxModal(tx.type || 'expense', tx);
+        // Limpa o query param da URL para não reabrir ao recarregar
+        const url = new URL(window.location.href);
+        url.searchParams.delete('edit');
+        window.history.replaceState({}, '', url.toString());
+    } catch (e) {
+        console.error('handleEditParam', e);
     }
 }
 

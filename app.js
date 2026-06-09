@@ -2530,9 +2530,7 @@ function renderChartCategorias(data) {
                 if (!elements || !elements.length) return;
                 const idx = elements[0].index;
                 const cat = labels[idx];
-                // Toggle: clicar na mesma categoria limpa o filtro
-                chartCrossFilter.category = (chartCrossFilter.category === cat) ? null : cat;
-                renderCharts();
+                openChartActionModal('category', cat);
             },
             plugins: {
                 legend: { display: false },
@@ -2582,8 +2580,7 @@ function renderChartFornecedores(data) {
                 if (!elements || !elements.length) return;
                 const idx = elements[0].index;
                 const sup = labels[idx];
-                chartCrossFilter.supplier = (chartCrossFilter.supplier === sup) ? null : sup;
-                renderCharts();
+                openChartActionModal('supplier', sup);
             },
             plugins: {
                 legend: { display: false },
@@ -2594,6 +2591,133 @@ function renderChartFornecedores(data) {
             }
         }
     });
+}
+
+// ===== Modal de ação ao clicar em barra do gráfico =====
+function openChartActionModal(kind, label) {
+    // kind: 'category' | 'supplier'
+    const modal = document.getElementById('chart-action-modal');
+    const title = document.getElementById('chart-action-title');
+    const filterLbl = document.getElementById('chart-action-filter-label');
+    const btnFilter = document.getElementById('chart-action-filter');
+    const btnDetails = document.getElementById('chart-action-details');
+    const btnClose = document.getElementById('close-chart-action-modal');
+    if (!modal) return;
+
+    const niceKind = kind === 'category' ? 'Categoria' : 'Fornecedor';
+    title.textContent = `${niceKind}: ${label}`;
+    // Se este filtro JÁ está ativo, oferece "Remover filtro" em vez de aplicar
+    const isActive = (kind === 'category' && chartCrossFilter.category === label)
+                  || (kind === 'supplier' && chartCrossFilter.supplier === label);
+    filterLbl.textContent = isActive ? 'Remover filtro dos outros gráficos' : 'Filtrar outros gráficos';
+
+    const close = () => modal.classList.add('hidden');
+    btnClose.onclick = close;
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+    btnFilter.onclick = () => {
+        if (kind === 'category') {
+            chartCrossFilter.category = isActive ? null : label;
+        } else {
+            chartCrossFilter.supplier = isActive ? null : label;
+        }
+        close();
+        renderCharts();
+    };
+    btnDetails.onclick = () => {
+        close();
+        openChartDetailModal(kind, label);
+    };
+
+    modal.classList.remove('hidden');
+}
+
+function openChartDetailModal(kind, label) {
+    const modal = document.getElementById('chart-detail-modal');
+    const title = document.getElementById('chart-detail-title');
+    const summary = document.getElementById('chart-detail-summary');
+    const list = document.getElementById('chart-detail-list');
+    const btnClose = document.getElementById('close-chart-detail-modal');
+    if (!modal) return;
+
+    const niceKind = kind === 'category' ? 'Categoria' : 'Fornecedor';
+    title.textContent = `${niceKind}: ${label}`;
+
+    // Pega base = dados filtrados pelo mês/ano + cross-filter cruzado (mesma lógica do gráfico clicado)
+    let base = getChartTransactions().filter(t => t.type === 'expense');
+    if (kind === 'category') {
+        // Lista de despesas dessa categoria, respeitando cross-filter de fornecedor
+        if (chartCrossFilter.supplier) {
+            base = base.filter(t => {
+                const sup = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : 'Sem fornecedor';
+                return sup === chartCrossFilter.supplier;
+            });
+        }
+        base = base.filter(t => (t.category || 'Outros') === label);
+    } else {
+        if (chartCrossFilter.category) {
+            base = base.filter(t => (t.category || 'Outros') === chartCrossFilter.category);
+        }
+        base = base.filter(t => {
+            const sup = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : 'Sem fornecedor';
+            return sup === label;
+        });
+    }
+
+    // Ordena por data desc
+    base.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const total = base.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+    const fmtMoney = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = (d) => { if (!d) return '—'; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('pt-BR'); };
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    summary.innerHTML = `<strong>${base.length}</strong> lançamento(s) · Total: <strong style="color:#ef4444;">${fmtMoney(total)}</strong>`;
+
+    if (base.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:32px; color:#9ca3af;">Nenhum lançamento encontrado.</div>`;
+    } else {
+        list.innerHTML = base.map(t => {
+            const sup = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : '—';
+            const desc = t.description ? esc(t.description) : '<em style="color:#9ca3af;">sem descrição</em>';
+            const cat = t.category || 'Outros';
+            const paid = t.status === 'paid';
+            const statusBadge = paid
+                ? '<span style="font-size:.7rem; background:#dcfce7; color:#166534; padding:2px 8px; border-radius:8px; font-weight:600;">PAGO</span>'
+                : '<span style="font-size:.7rem; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:8px; font-weight:600;">PENDENTE</span>';
+            return `
+            <div style="display:flex; gap:10px; padding:12px; border-bottom:1px solid #f1f5f9; align-items:flex-start;">
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <strong style="font-size:.95rem;">${desc}</strong>
+                        ${statusBadge}
+                    </div>
+                    <div style="font-size:.78rem; color:#6b7280; margin-top:4px;">
+                        📅 ${fmtDate(t.date)} · 🏷️ ${esc(cat)}${kind === 'category' ? ` · 🏪 ${esc(sup)}` : ''}
+                    </div>
+                </div>
+                <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                    <strong style="font-size:1rem; color:#ef4444;">${fmtMoney(t.amount)}</strong>
+                    <button class="chart-detail-edit-btn" data-tx-id="${esc(t.id)}" style="padding:4px 10px; font-size:.75rem; background:#6366f1; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">✏️ Editar</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Bind edit buttons → vai para diario.html com query param
+        list.querySelectorAll('.chart-detail-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.txId;
+                if (!id) return;
+                window.location.href = `diario.html?edit=${encodeURIComponent(id)}`;
+            });
+        });
+    }
+
+    const close = () => modal.classList.add('hidden');
+    btnClose.onclick = close;
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+    modal.classList.remove('hidden');
 }
 
 function renderChartSaldo(data) {
