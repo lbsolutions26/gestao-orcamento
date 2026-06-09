@@ -1593,7 +1593,7 @@ function navigateToScreen(screenName) {
     }
     if (screenName === 'graficos') {
         populateChartYearFilter();
-        renderCharts();
+        loadChartBudgets().then(() => renderCharts());
     }
     if (screenName === 'cadastro') {
         loadUserProfileForm();
@@ -2356,6 +2356,9 @@ function formatDate(dateString) {
 // ==========================================
 let chartInstances = {};
 
+// Cache dos budgets carregados do Supabase para o gráfico de orçamento
+let chartBudgets = [];
+
 // Filtros cruzados entre os gráficos de Categoria e Fornecedor
 let chartCrossFilter = {
     category: null,   // quando setado, gráfico de fornecedor mostra só essa categoria
@@ -2409,7 +2412,31 @@ function renderCharts() {
     renderChartCategorias(data);
     renderChartFornecedores(data);
     renderChartSaldo(data);
+    renderChartBudgetVsRealizado(data);
     updateCrossFilterIndicators();
+}
+
+async function loadChartBudgets() {
+    if (!currentFamilyId) {
+        chartBudgets = [];
+        return;
+    }
+    const year = document.getElementById('chart-filter-year')?.value || 'all';
+    const month = document.getElementById('chart-filter-month')?.value || 'all';
+    try {
+        let query = supabaseClient
+            .from('category_budgets')
+            .select('*')
+            .eq('family_id', currentFamilyId);
+        if (year !== 'all') query = query.eq('year', parseInt(year));
+        if (month !== 'all') query = query.eq('month', parseInt(month));
+        const { data, error } = await query;
+        if (error) throw error;
+        chartBudgets = data || [];
+    } catch (err) {
+        console.warn('⚠️ Erro ao carregar budgets para gráfico:', err);
+        chartBudgets = [];
+    }
 }
 
 function updateCrossFilterIndicators() {
@@ -2623,6 +2650,97 @@ function renderChartSaldo(data) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: { y: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
+        }
+    });
+}
+
+function renderChartBudgetVsRealizado(data) {
+    destroyChart('budget-vs-realizado');
+    const tipo = document.getElementById('chart-budget-type')?.value || 'expense';
+    const emptyMsg = document.getElementById('chart-budget-empty');
+
+    // Soma o or\u00e7amento por categoria (agrega caso m\u00faltiplos meses no filtro)
+    const orcadoPorCat = {};
+    chartBudgets.filter(b => b.type === tipo).forEach(b => {
+        const cat = b.category || 'Outros';
+        orcadoPorCat[cat] = (orcadoPorCat[cat] || 0) + parseFloat(b.budget_amount || 0);
+    });
+
+    // Soma o realizado por categoria
+    const realizadoPorCat = {};
+    data.filter(t => t.type === tipo && t.affects_balance !== false).forEach(t => {
+        const cat = t.category || 'Outros';
+        realizadoPorCat[cat] = (realizadoPorCat[cat] || 0) + parseFloat(t.amount || 0);
+    });
+
+    // Une categorias dos dois lados
+    const categorias = [...new Set([...Object.keys(orcadoPorCat), ...Object.keys(realizadoPorCat)])];
+    // Ordena por or\u00e7ado desc, depois realizado desc
+    categorias.sort((a, b) => (orcadoPorCat[b] || 0) - (orcadoPorCat[a] || 0) || (realizadoPorCat[b] || 0) - (realizadoPorCat[a] || 0));
+
+    const ctx = document.getElementById('chart-budget-vs-realizado');
+    if (!ctx) return;
+
+    if (categorias.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        return;
+    }
+    if (emptyMsg) emptyMsg.style.display = (Object.keys(orcadoPorCat).length === 0) ? 'block' : 'none';
+
+    const orcado = categorias.map(c => orcadoPorCat[c] || 0);
+    const realizado = categorias.map(c => realizadoPorCat[c] || 0);
+
+    // Cor do realizado: vermelho quando estoura, verde quando ok (para despesas);
+    // para receitas, invertido (verde quando atinge/excede, amarelo se abaixo).
+    const corRealizado = categorias.map((c, i) => {
+        const o = orcado[i];
+        const r = realizado[i];
+        if (tipo === 'expense') {
+            if (o === 0) return '#9ca3af'; // sem or\u00e7amento
+            if (r > o) return '#ef4444';   // estourou
+            if (r > o * 0.8) return '#f59e0b'; // alerta
+            return '#10b981';
+        } else {
+            if (o === 0) return '#9ca3af';
+            if (r >= o) return '#10b981';
+            return '#f59e0b';
+        }
+    });
+
+    chartInstances['budget-vs-realizado'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: categorias,
+            datasets: [
+                { label: 'Or\u00e7ado', data: orcado, backgroundColor: '#6366f1', borderRadius: 6 },
+                { label: 'Realizado', data: realizado, backgroundColor: corRealizado, borderRadius: 6 }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const val = ctx.parsed.x;
+                            const cat = ctx.label;
+                            const o = orcadoPorCat[cat] || 0;
+                            const r = realizadoPorCat[cat] || 0;
+                            const base = `${ctx.dataset.label}: R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+                            if (ctx.dataset.label === 'Realizado' && o > 0) {
+                                const pct = (r / o * 100).toFixed(0);
+                                return `${base}  (${pct}% do or\u00e7ado)`;
+                            }
+                            return base;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } }
+            }
         }
     });
 }
