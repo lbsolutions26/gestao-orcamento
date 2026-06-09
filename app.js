@@ -359,50 +359,56 @@ function setupEventListeners() {
     auth.registerForm.addEventListener('submit', handleRegister);
 
     // App actions
-    app.addIncomeBtn.addEventListener('click', () => openTransactionModal('income'));
-    app.addExpenseBtn.addEventListener('click', () => openTransactionModal('expense'));
-    app.logoutBtn.addEventListener('click', handleLogout);
+    if (app.addIncomeBtn) app.addIncomeBtn.addEventListener('click', () => openTransactionModal('income'));
+    if (app.addExpenseBtn) app.addExpenseBtn.addEventListener('click', () => openTransactionModal('expense'));
+    if (app.logoutBtn) app.logoutBtn.addEventListener('click', handleLogout);
     
     // Filtros
-    app.searchInput.addEventListener('input', applyFilters);
-    app.filterMonth.addEventListener('change', applyFilters);
-    app.filterYear.addEventListener('change', applyFilters);
+    if (app.searchInput) app.searchInput.addEventListener('input', applyFilters);
+    if (app.filterMonth) app.filterMonth.addEventListener('change', applyFilters);
+    if (app.filterYear) app.filterYear.addEventListener('change', applyFilters);
 
     // Cards clicáveis
-    app.cardIncome.addEventListener('click', () => openCardDetails('income'));
-    app.cardExpense.addEventListener('click', () => openCardDetails('expense'));
-    app.cardPending.addEventListener('click', () => openCardDetails('pending'));
-    app.cardOverdue.addEventListener('click', () => openCardDetails('overdue'));
-    app.cardCredit.addEventListener('click', () => openCardDetails('credit'));
+    if (app.cardIncome) app.cardIncome.addEventListener('click', () => openCardDetails('income'));
+    if (app.cardExpense) app.cardExpense.addEventListener('click', () => openCardDetails('expense'));
+    if (app.cardPending) app.cardPending.addEventListener('click', () => openCardDetails('pending'));
+    if (app.cardOverdue) app.cardOverdue.addEventListener('click', () => openCardDetails('overdue'));
+    if (app.cardCredit) app.cardCredit.addEventListener('click', () => openCardDetails('credit'));
 
     // Modal de detalhes
-    app.closeDetailsModal.addEventListener('click', closeCardDetails);
-    app.cardDetailsModal.addEventListener('click', (e) => {
-        if (e.target === app.cardDetailsModal) closeCardDetails();
-    });
+    if (app.closeDetailsModal) app.closeDetailsModal.addEventListener('click', closeCardDetails);
+    if (app.cardDetailsModal) {
+        app.cardDetailsModal.addEventListener('click', (e) => {
+            if (e.target === app.cardDetailsModal) closeCardDetails();
+        });
+    }
 
     // Modal
-    app.closeModalBtn.addEventListener('click', closeTransactionModal);
-    app.modal.addEventListener('click', (e) => {
-        if (e.target === app.modal) closeTransactionModal();
-    });
-    app.transactionForm.addEventListener('submit', handleTransactionSubmit);
+    if (app.closeModalBtn) app.closeModalBtn.addEventListener('click', closeTransactionModal);
+    if (app.modal) {
+        app.modal.addEventListener('click', (e) => {
+            if (e.target === app.modal) closeTransactionModal();
+        });
+    }
+    if (app.transactionForm) app.transactionForm.addEventListener('submit', handleTransactionSubmit);
     
     // Payment method change
-    app.transactionPaymentMethod.addEventListener('change', handlePaymentMethodChange);
-    app.transactionAffectsBalance.addEventListener('change', handleAffectsBalanceChange);
+    if (app.transactionPaymentMethod) app.transactionPaymentMethod.addEventListener('change', handlePaymentMethodChange);
+    if (app.transactionAffectsBalance) app.transactionAffectsBalance.addEventListener('change', handleAffectsBalanceChange);
     
     // Attachment handling
-    app.removeAttachment.addEventListener('click', () => {
-        currentAttachmentUrl = null;
-        app.currentAttachment.style.display = 'none';
-        app.transactionAttachment.value = '';
-    });
+    if (app.removeAttachment) {
+        app.removeAttachment.addEventListener('click', () => {
+            currentAttachmentUrl = null;
+            if (app.currentAttachment) app.currentAttachment.style.display = 'none';
+            if (app.transactionAttachment) app.transactionAttachment.value = '';
+        });
+    }
 
     // Menu hambúrguer e navegação
-    app.menuToggle.addEventListener('click', openSidebar);
-    app.sidebarClose.addEventListener('click', closeSidebar);
-    app.sidebarOverlay.addEventListener('click', closeSidebar);
+    if (app.menuToggle) app.menuToggle.addEventListener('click', openSidebar);
+    if (app.sidebarClose) app.sidebarClose.addEventListener('click', closeSidebar);
+    if (app.sidebarOverlay) app.sidebarOverlay.addEventListener('click', closeSidebar);
     
     app.menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
@@ -2432,22 +2438,33 @@ function renderChartCategorias(data) {
         const c = t.category || 'Outros';
         cats[c] = (cats[c] || 0) + parseFloat(t.amount || 0);
     });
-    const labels = Object.keys(cats);
-    const valores = labels.map(l => cats[l]);
+    // Ordenar por valor decrescente para visualização em barras
+    const ordenadas = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    const labels = ordenadas.map(e => e[0]);
+    const valores = ordenadas.map(e => e[1]);
     const cores = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a855f7'];
     const ctx = document.getElementById('chart-categorias');
     if (!ctx) return;
     chartInstances['categorias'] = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
             labels,
-            datasets: [{ data: valores, backgroundColor: cores.slice(0, labels.length), borderWidth: 2 }]
+            datasets: [{
+                label: 'Despesas por Categoria',
+                data: valores,
+                backgroundColor: labels.map((_, i) => cores[i % cores.length]),
+                borderRadius: 6
+            }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right' },
-                tooltip: { callbacks: { label: ctx => ` R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})}` } }
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` R$ ${ctx.parsed.x.toLocaleString('pt-BR', {minimumFractionDigits:2})}` } }
+            },
+            scales: {
+                x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } }
             }
         }
     });
