@@ -1317,6 +1317,10 @@ async function deleteTransaction(id) {
 // UI UPDATES
 // ==========================================
 function updateBalance() {
+    // Bail out se a página atual não possui os elementos do dashboard (ex.: index.html / gráficos).
+    if (!app.balanceTotal) {
+        return;
+    }
     console.log('🧮 Atualizando saldo - transações totais:', transactions.length);
     // SALDO ATUAL: considerar TODAS as transações (sem filtro)
     const balanceTransactions = transactions.filter(t => t.affects_balance !== false);
@@ -1403,6 +1407,10 @@ function getStatusBadge(transaction) {
 }
 
 function renderTransactions() {
+    // Bail out se a página atual não possui a lista de transações (ex.: index.html / gráficos).
+    if (!app.transactionsList) {
+        return;
+    }
     console.log('📋 Renderizando transações na tela...');
     // Aplicar filtros
     const filteredTransactions = getFilteredTransactions();
@@ -1452,9 +1460,13 @@ function renderTransactions() {
 }
 
 function getFilteredTransactions(includeSearch = true) {
+    // Se os filtros do dashboard não existirem na página atual, retorna todas as transações.
+    if (!app.filterMonth || !app.filterYear) {
+        return transactions.slice();
+    }
     const selectedMonth = app.filterMonth.value;
     const selectedYear = app.filterYear.value;
-    const searchTerm = includeSearch ? app.searchInput.value.toLowerCase().trim() : '';
+    const searchTerm = includeSearch && app.searchInput ? app.searchInput.value.toLowerCase().trim() : '';
     
     return transactions.filter(t => {
         const date = new Date(t.date + 'T00:00:00');
@@ -1487,6 +1499,10 @@ function getFilteredTransactions(includeSearch = true) {
 }
 
 function populateYearFilter() {
+    // Bail out se a página atual não possui o filtro de ano (ex.: index.html / gráficos).
+    if (!app.filterYear) {
+        return;
+    }
     if (transactions.length === 0) {
         app.filterYear.innerHTML = '<option value="">Todos os anos</option>';
         return;
