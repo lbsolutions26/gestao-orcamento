@@ -2356,6 +2356,12 @@ function formatDate(dateString) {
 // ==========================================
 let chartInstances = {};
 
+// Filtros cruzados entre os gráficos de Categoria e Fornecedor
+let chartCrossFilter = {
+    category: null,   // quando setado, gráfico de fornecedor mostra só essa categoria
+    supplier: null    // quando setado, gráfico de categoria mostra só esse fornecedor
+};
+
 function populateChartYearFilter() {
     const years = [...new Set(transactions.map(t => new Date(t.date).getFullYear()))].sort((a,b) => b-a);
     const sel = document.getElementById('chart-filter-year');
@@ -2367,6 +2373,16 @@ function populateChartYearFilter() {
         opt.textContent = y;
         sel.appendChild(opt);
     });
+
+    // Default: ano atual (se existir) e mês atual
+    const currentYear = new Date().getFullYear();
+    if (years.includes(currentYear)) {
+        sel.value = String(currentYear);
+    }
+    const monthSel = document.getElementById('chart-filter-month');
+    if (monthSel) {
+        monthSel.value = String(new Date().getMonth() + 1);
+    }
 }
 
 function getChartTransactions() {
@@ -2393,6 +2409,34 @@ function renderCharts() {
     renderChartCategorias(data);
     renderChartFornecedores(data);
     renderChartSaldo(data);
+    updateCrossFilterIndicators();
+}
+
+function updateCrossFilterIndicators() {
+    const catInfo = document.getElementById('filter-info-categorias');
+    const supInfo = document.getElementById('filter-info-fornecedores');
+    if (catInfo) {
+        if (chartCrossFilter.supplier) {
+            catInfo.style.display = 'inline-block';
+            const lbl = catInfo.querySelector('[data-label]');
+            if (lbl) lbl.textContent = `Fornecedor: ${chartCrossFilter.supplier}`;
+            catInfo.onclick = () => { chartCrossFilter.supplier = null; renderCharts(); };
+        } else {
+            catInfo.style.display = 'none';
+            catInfo.onclick = null;
+        }
+    }
+    if (supInfo) {
+        if (chartCrossFilter.category) {
+            supInfo.style.display = 'inline-block';
+            const lbl = supInfo.querySelector('[data-label]');
+            if (lbl) lbl.textContent = `Categoria: ${chartCrossFilter.category}`;
+            supInfo.onclick = () => { chartCrossFilter.category = null; renderCharts(); };
+        } else {
+            supInfo.style.display = 'none';
+            supInfo.onclick = null;
+        }
+    }
 }
 
 function renderChartReceitasDespesas(data) {
@@ -2433,7 +2477,14 @@ function renderChartReceitasDespesas(data) {
 
 function renderChartCategorias(data) {
     destroyChart('categorias');
-    const despesas = data.filter(t => t.type === 'expense');
+    let despesas = data.filter(t => t.type === 'expense');
+    // Aplica filtro cruzado por fornecedor (se houver)
+    if (chartCrossFilter.supplier) {
+        despesas = despesas.filter(t => {
+            const sup = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : 'Sem fornecedor';
+            return sup === chartCrossFilter.supplier;
+        });
+    }
     const cats = {};
     despesas.forEach(t => {
         const c = t.category || 'Outros';
@@ -2460,6 +2511,14 @@ function renderChartCategorias(data) {
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
+            onClick: (evt, elements) => {
+                if (!elements || !elements.length) return;
+                const idx = elements[0].index;
+                const cat = labels[idx];
+                // Toggle: clicar na mesma categoria limpa o filtro
+                chartCrossFilter.category = (chartCrossFilter.category === cat) ? null : cat;
+                renderCharts();
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: ctx => ` R$ ${ctx.parsed.x.toLocaleString('pt-BR', {minimumFractionDigits:2})}` } }
@@ -2473,7 +2532,11 @@ function renderChartCategorias(data) {
 
 function renderChartFornecedores(data) {
     destroyChart('fornecedores');
-    const despesas = data.filter(t => t.type === 'expense');
+    let despesas = data.filter(t => t.type === 'expense');
+    // Aplica filtro cruzado por categoria (se houver)
+    if (chartCrossFilter.category) {
+        despesas = despesas.filter(t => (t.category || 'Outros') === chartCrossFilter.category);
+    }
     const fornecedores = {};
     despesas.forEach(t => {
         const f = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : 'Sem fornecedor';
@@ -2500,6 +2563,13 @@ function renderChartFornecedores(data) {
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
+            onClick: (evt, elements) => {
+                if (!elements || !elements.length) return;
+                const idx = elements[0].index;
+                const sup = labels[idx];
+                chartCrossFilter.supplier = (chartCrossFilter.supplier === sup) ? null : sup;
+                renderCharts();
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: ctx => ` R$ ${ctx.parsed.x.toLocaleString('pt-BR', {minimumFractionDigits:2})}` } }
