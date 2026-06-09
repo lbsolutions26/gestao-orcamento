@@ -283,7 +283,7 @@
 
             <!-- Gráfico 5: Orçamento vs Realizado -->
             <div class="chart-card">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.5rem; flex-wrap:wrap;">
                     <h3 style="font-size:1rem; color:#374151; margin:0;">🎯 Orçamento vs Realizado</h3>
                     <div style="display:flex; gap:.5rem; align-items:center;">
                         <select id="chart-budget-type" onchange="renderChartBudgetVsRealizado(getChartTransactions())" style="padding:.35rem .6rem; border-radius:8px; border:1px solid #e5e7eb; font-size:.8rem;">
@@ -292,7 +292,18 @@
                         </select>
                     </div>
                 </div>
-                <div style="position:relative; height:320px;">
+                <!-- Resumo total orçado / realizado / % -->
+                <div id="chart-budget-summary" style="display:none; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:.6rem .85rem; margin-bottom:.75rem; font-size:.85rem; color:#374151;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <span><strong>Orçado:</strong> <span id="chart-budget-total-orcado">R$ 0,00</span></span>
+                        <span><strong>Realizado:</strong> <span id="chart-budget-total-realizado">R$ 0,00</span></span>
+                        <span><strong>% Realizado:</strong> <span id="chart-budget-total-pct" style="font-weight:700;">0%</span></span>
+                    </div>
+                    <div style="margin-top:.5rem; background:#e5e7eb; border-radius:6px; height:8px; overflow:hidden;">
+                        <div id="chart-budget-total-bar" style="height:100%; width:0%; background:#10b981; transition:width .4s;"></div>
+                    </div>
+                </div>
+                <div id="chart-budget-wrapper" style="position:relative; height:320px;">
                     <canvas id="chart-budget-vs-realizado"></canvas>
                 </div>
                 <p id="chart-budget-empty" style="display:none; text-align:center; color:#9ca3af; font-size:.85rem; margin-top:.5rem;">

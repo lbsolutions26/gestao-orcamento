@@ -2690,6 +2690,43 @@ function renderChartBudgetVsRealizado(data) {
     const orcado = categorias.map(c => orcadoPorCat[c] || 0);
     const realizado = categorias.map(c => realizadoPorCat[c] || 0);
 
+    // ===== Resumo total (orçado, realizado, %) =====
+    const totalOrcado = orcado.reduce((s, v) => s + v, 0);
+    const totalRealizado = realizado.reduce((s, v) => s + v, 0);
+    const pct = totalOrcado > 0 ? (totalRealizado / totalOrcado * 100) : 0;
+    const summary = document.getElementById('chart-budget-summary');
+    if (summary) {
+        if (totalOrcado > 0) {
+            summary.style.display = 'block';
+            const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('chart-budget-total-orcado').textContent = fmt(totalOrcado);
+            document.getElementById('chart-budget-total-realizado').textContent = fmt(totalRealizado);
+            const pctEl = document.getElementById('chart-budget-total-pct');
+            const barEl = document.getElementById('chart-budget-total-bar');
+            pctEl.textContent = pct.toFixed(1) + '%';
+            // Cores: para despesa, ruim quando > 100%; para receita, bom quando >= 100%
+            let cor;
+            if (tipo === 'expense') {
+                cor = pct > 100 ? '#ef4444' : (pct > 80 ? '#f59e0b' : '#10b981');
+            } else {
+                cor = pct >= 100 ? '#10b981' : (pct >= 80 ? '#f59e0b' : '#ef4444');
+            }
+            pctEl.style.color = cor;
+            barEl.style.background = cor;
+            barEl.style.width = Math.min(pct, 100).toFixed(1) + '%';
+        } else {
+            summary.style.display = 'none';
+        }
+    }
+
+    // ===== Altura dinâmica do gráfico para não omitir categorias =====
+    const wrapper = document.getElementById('chart-budget-wrapper');
+    if (wrapper) {
+        // ~46px por categoria (caber as duas barras Orçado/Realizado) + margem para eixo/legenda
+        const altura = Math.max(280, categorias.length * 46 + 60);
+        wrapper.style.height = altura + 'px';
+    }
+
     // Cor do realizado: vermelho quando estoura, verde quando ok (para despesas);
     // para receitas, invertido (verde quando atinge/excede, amarelo se abaixo).
     const corRealizado = categorias.map((c, i) => {
@@ -2719,6 +2756,9 @@ function renderChartBudgetVsRealizado(data) {
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
+            // Garante espaçamento de barras e exibição de TODOS os rótulos
+            categoryPercentage: 0.85,
+            barPercentage: 0.9,
             plugins: {
                 legend: { position: 'top' },
                 tooltip: {
@@ -2739,7 +2779,8 @@ function renderChartBudgetVsRealizado(data) {
                 }
             },
             scales: {
-                x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } }
+                x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } },
+                y: { ticks: { autoSkip: false } }
             }
         }
     });
