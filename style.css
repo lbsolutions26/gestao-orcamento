@@ -823,6 +823,10 @@ body {
         grid-template-columns: 1fr !important;
     }
 
+    .charts-budget-row {
+        grid-template-columns: 1fr !important;
+    }
+
     .ai-manager-container {
         grid-template-columns: 1fr;
         padding: 0 0.75rem 1rem;

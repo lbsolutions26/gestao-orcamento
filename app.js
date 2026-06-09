@@ -2408,12 +2408,36 @@ function destroyChart(id) {
 
 function renderCharts() {
     const data = getChartTransactions();
-    renderChartReceitasDespesas(data);
+    renderInfoCards(data);
     renderChartCategorias(data);
     renderChartFornecedores(data);
     renderChartSaldo(data);
     renderChartBudgetVsRealizado(data);
     updateCrossFilterIndicators();
+}
+
+function renderInfoCards(data) {
+    const receitas = data.filter(t => t.type === 'income' && t.affects_balance !== false);
+    const despesas = data.filter(t => t.type === 'expense' && t.affects_balance !== false);
+    const totalReceitas = receitas.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+    const totalDespesas = despesas.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+    const saldo = totalReceitas - totalDespesas;
+
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const elReceitas = document.getElementById('info-card-receitas');
+    const elDespesas = document.getElementById('info-card-despesas');
+    const elSaldo = document.getElementById('info-card-saldo');
+    const elReceitasCount = document.getElementById('info-card-receitas-count');
+    const elDespesasCount = document.getElementById('info-card-despesas-count');
+
+    if (elReceitas) elReceitas.textContent = fmt(totalReceitas);
+    if (elDespesas) elDespesas.textContent = fmt(totalDespesas);
+    if (elSaldo) {
+        elSaldo.textContent = fmt(saldo);
+        elSaldo.style.color = saldo >= 0 ? '#10b981' : '#ef4444';
+    }
+    if (elReceitasCount) elReceitasCount.textContent = `${receitas.length} ${receitas.length === 1 ? 'lançamento' : 'lançamentos'}`;
+    if (elDespesasCount) elDespesasCount.textContent = `${despesas.length} ${despesas.length === 1 ? 'lançamento' : 'lançamentos'}`;
 }
 
 async function loadChartBudgets() {
@@ -2464,42 +2488,6 @@ function updateCrossFilterIndicators() {
             supInfo.onclick = null;
         }
     }
-}
-
-function renderChartReceitasDespesas(data) {
-    destroyChart('receitas-despesas');
-    // Agrupar por m�s
-    const meses = {};
-    data.forEach(t => {
-        const d = new Date(t.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        if (!meses[key]) meses[key] = { receita: 0, despesa: 0 };
-        if (t.type === 'income' && t.affects_balance !== false) meses[key].receita += parseFloat(t.amount || 0);
-        if (t.type === 'expense') meses[key].despesa += parseFloat(t.amount || 0);
-    });
-    const labels = Object.keys(meses).sort();
-    const [mesesNomes] = [['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']];
-    const labelsFormatados = labels.map(l => {
-        const [y, m] = l.split('-');
-        return `${mesesNomes[parseInt(m)-1]}/${y.slice(2)}`;
-    });
-    const ctx = document.getElementById('chart-receitas-despesas');
-    if (!ctx) return;
-    chartInstances['receitas-despesas'] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labelsFormatados,
-            datasets: [
-                { label: 'Receitas', data: labels.map(l => meses[l].receita), backgroundColor: '#10b981', borderRadius: 6 },
-                { label: 'Despesas', data: labels.map(l => meses[l].despesa), backgroundColor: '#ef4444', borderRadius: 6 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
-            scales: { y: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
-        }
-    });
 }
 
 function renderChartCategorias(data) {
