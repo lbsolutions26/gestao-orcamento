@@ -2391,6 +2391,7 @@ function renderCharts() {
     const data = getChartTransactions();
     renderChartReceitasDespesas(data);
     renderChartCategorias(data);
+    renderChartFornecedores(data);
     renderChartSaldo(data);
 }
 
@@ -2451,6 +2452,46 @@ function renderChartCategorias(data) {
             labels,
             datasets: [{
                 label: 'Despesas por Categoria',
+                data: valores,
+                backgroundColor: labels.map((_, i) => cores[i % cores.length]),
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` R$ ${ctx.parsed.x.toLocaleString('pt-BR', {minimumFractionDigits:2})}` } }
+            },
+            scales: {
+                x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } }
+            }
+        }
+    });
+}
+
+function renderChartFornecedores(data) {
+    destroyChart('fornecedores');
+    const despesas = data.filter(t => t.type === 'expense');
+    const fornecedores = {};
+    despesas.forEach(t => {
+        const f = (t.supplier && t.supplier.trim()) ? t.supplier.trim() : 'Sem fornecedor';
+        fornecedores[f] = (fornecedores[f] || 0) + parseFloat(t.amount || 0);
+    });
+    // Ordenar por valor decrescente
+    const ordenadas = Object.entries(fornecedores).sort((a, b) => b[1] - a[1]);
+    const labels = ordenadas.map(e => e[0]);
+    const valores = ordenadas.map(e => e[1]);
+    const cores = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a855f7'];
+    const ctx = document.getElementById('chart-fornecedores');
+    if (!ctx) return;
+    chartInstances['fornecedores'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Despesas por Fornecedor',
                 data: valores,
                 backgroundColor: labels.map((_, i) => cores[i % cores.length]),
                 borderRadius: 6
