@@ -2822,15 +2822,19 @@ function renderCashflowTimeline() {
         return;
     }
     
-    // Calcular saldo atual (todas as transações pagas que afetam o saldo)
-    const balanceTransactions = state.allTx.filter(t => isPaid(t) && t.affects_balance !== false);
-    const totalIncome = balanceTransactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const totalExpense = balanceTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const currentBalance = totalIncome - totalExpense;
+    // Calcular saldo atual usando a mesma lógica do "Saldo Banco"
+    // Considera apenas transações pagas até o fim do mês atual
+    const endOfMonth = new Date(state.viewYear, state.viewMonth + 1, 0, 23, 59, 59);
+    const currentBalance = state.allTx.reduce((s, t) => {
+        if (!isPaid(t)) return s;
+        if (t.affects_balance === false) return s;
+        const dateStr = t.payment_date || t.due_date || t.date;
+        if (!dateStr) return s;
+        const d = new Date(dateStr);
+        if (d > endOfMonth) return s;
+        const v = Number(t.amount || 0);
+        return s + ((t.type === 'income') ? v : -v);
+    }, 0);
     
     // Atualizar saldo atual
     cashflowCurrentBalance.textContent = fmtMoney(currentBalance);
