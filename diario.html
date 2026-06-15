@@ -249,6 +249,179 @@
         .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .summary-card .sub { font-size: 1.2rem; font-weight: 700; opacity: 0.95; margin-top: 4px; white-space: nowrap; }
 
+        /* ===== Cashflow Timeline ===== */
+        .cashflow-timeline {
+            background: rgba(255,255,255,0.96);
+            border-radius: 12px;
+            margin-top: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .cashflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.08) 100%);
+            border-bottom: 1px solid rgba(99,102,241,0.15);
+            cursor: pointer;
+            user-select: none;
+        }
+        .cashflow-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .cashflow-title svg {
+            stroke: var(--primary);
+        }
+        .cashflow-toggle {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+        .cashflow-toggle.expanded {
+            transform: rotate(180deg);
+        }
+        .cashflow-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .cashflow-content.expanded {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        .cashflow-current {
+            padding: 14px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-bottom: 2px solid #f59e0b;
+            text-align: center;
+        }
+        .cashflow-current-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #92400e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .cashflow-current-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #78350f;
+        }
+        .cashflow-items {
+            padding: 8px 12px 12px;
+        }
+        .cashflow-item {
+            position: relative;
+            padding: 10px 12px 10px 32px;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            background: white;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .cashflow-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transform: translateX(2px);
+        }
+        .cashflow-item::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 18px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+        .cashflow-item.income::before {
+            background: var(--success);
+        }
+        .cashflow-item.expense::before {
+            background: var(--danger);
+        }
+        .cashflow-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+        .cashflow-item-date {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .cashflow-item-amount {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+        .cashflow-item-amount.income {
+            color: var(--success);
+        }
+        .cashflow-item-amount.expense {
+            color: var(--danger);
+        }
+        .cashflow-item-description {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .cashflow-item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cashflow-item-category {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            padding: 2px 8px;
+            background: var(--bg);
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .cashflow-item-balance {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 8px;
+        }
+        .cashflow-item-balance.positive {
+            background: rgba(34, 197, 94, 0.12);
+            color: #15803d;
+        }
+        .cashflow-item-balance.negative {
+            background: rgba(239, 68, 68, 0.12);
+            color: #b91c1c;
+        }
+        .cashflow-item-balance.warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: #92400e;
+        }
+        .cashflow-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
         /* ===== Budgets Section ===== */
         .budgets-section {
             background: white;
@@ -1014,6 +1187,33 @@
             <div class="summary-card balance clickable" id="card-balance" title="Ver detalhes do saldo do mês">
                 <div class="val" id="sum-balance">R$ 0</div>
                 <div class="sub" id="sum-balance-accum">Real: R$ 0</div>
+            </div>
+        </div>
+
+        <!-- Linha do Tempo de Fluxo de Caixa -->
+        <div class="cashflow-timeline" id="cashflow-timeline">
+            <div class="cashflow-header">
+                <div class="cashflow-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                        <path d="M3 3v18h18"></path>
+                        <path d="m19 9-5 5-4-4-3 3"></path>
+                    </svg>
+                    <span>Projeção de Fluxo de Caixa</span>
+                </div>
+                <button class="cashflow-toggle" id="cashflow-toggle" aria-label="Expandir/Recolher">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+            </div>
+            <div class="cashflow-content" id="cashflow-content">
+                <div class="cashflow-current">
+                    <div class="cashflow-current-label">Saldo Atual</div>
+                    <div class="cashflow-current-value" id="cashflow-current-balance">R$ 0</div>
+                </div>
+                <div class="cashflow-items" id="cashflow-items">
+                    <!-- Items serão inseridos dinamicamente via JavaScript -->
+                </div>
             </div>
         </div>
     </header>

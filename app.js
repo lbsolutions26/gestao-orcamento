@@ -368,6 +368,23 @@ function setupEventListeners() {
     if (app.filterMonth) app.filterMonth.addEventListener('change', applyFilters);
     if (app.filterYear) app.filterYear.addEventListener('change', applyFilters);
 
+    // Cashflow Timeline Toggle
+    const cashflowToggle = document.getElementById('cashflow-toggle');
+    const cashflowHeader = document.querySelector('.cashflow-header');
+    if (cashflowToggle && cashflowHeader) {
+        cashflowHeader.addEventListener('click', toggleCashflowTimeline);
+        
+        // Restaurar estado expandido/recolhido do localStorage
+        const isExpanded = localStorage.getItem('cashflow_timeline_expanded') === 'true';
+        if (isExpanded) {
+            const content = document.getElementById('cashflow-content');
+            if (content) {
+                content.classList.add('expanded');
+                cashflowToggle.classList.add('expanded');
+            }
+        }
+    }
+
     // Cards clicáveis
     if (app.cardIncome) app.cardIncome.addEventListener('click', () => openCardDetails('income'));
     if (app.cardExpense) app.cardExpense.addEventListener('click', () => openCardDetails('expense'));
@@ -660,6 +677,7 @@ function loadUserDataFromCache() {
             populateYearFilter();
             updateBalance();
             renderTransactions();
+            renderCashflowTimeline();
             return true; // Sucesso
         } catch (e) {
             console.error('❌ Erro ao parsear cache:', e);
@@ -679,6 +697,7 @@ async function loadUserData() {
         updateBalance();
         console.log('📋 Renderizando transações...');
         renderTransactions();
+        renderCashflowTimeline();
         console.log('✅ Todos os dados carregados com sucesso!');
     } catch (error) {
         console.error('❌ Erro ao carregar dados:', error);
@@ -1282,6 +1301,7 @@ async function handleTransactionSubmit(e) {
         // Atualizar UI
         updateBalance();
         renderTransactions();
+        renderCashflowTimeline();
         closeTransactionModal();
     } catch (error) {
         console.error('❌ Erro ao salvar transação:', error);
@@ -1313,6 +1333,7 @@ async function deleteTransaction(id) {
         // Atualizar UI
         updateBalance();
         renderTransactions();
+        renderCashflowTimeline();
     } catch (error) {
         console.error('❌ Erro ao excluir transação:', error);
         alert('Erro ao excluir transação');
@@ -1536,6 +1557,149 @@ function populateYearFilter() {
 function applyFilters() {
     updateBalance();
     renderTransactions();
+    renderCashflowTimeline();
+}
+
+// ==========================================
+// LINHA DO TEMPO DE FLUXO DE CAIXA
+// ==========================================
+function renderCashflowTimeline() {
+    const cashflowItems = document.getElementById('cashflow-items');
+    const cashflowCurrentBalance = document.getElementById('cashflow-current-balance');
+    
+    // Bail out se a página atual não possui a linha do tempo
+    if (!cashflowItems || !cashflowCurrentBalance) {
+        return;
+    }
+    
+    // Calcular saldo atual (todas as transações que afetam o saldo)
+    const balanceTransactions = transactions.filter(t => t.affects_balance !== false);
+    const totalIncome = balanceTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = balanceTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+    const currentBalance = totalIncome - totalExpense;
+    
+    // Atualizar saldo atual
+    cashflowCurrentBalance.textContent = formatCurrency(currentBalance);
+    
+    // Pegar transações pendentes com data de vencimento
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const futureTransactions = transactions.filter(t => {
+        if (t.status !== 'pending') return false;
+        if (!t.due_date) return false;
+        if (t.affects_balance === false) return false; // Não incluir compras no cartão
+        
+        const dueDate = new Date(t.due_date + 'T00:00:00');
+        return dueDate >= today;
+    });
+    
+    // Ordenar por data
+    futureTransactions.sort((a, b) => {
+        const dateA = new Date(a.due_date + 'T00:00:00');
+        const dateB = new Date(b.due_date + 'T00:00:00');
+        return dateA - dateB;
+    });
+    
+    // Se não há transações futuras
+    if (futureTransactions.length === 0) {
+        cashflowItems.innerHTML = `
+            <div class="cashflow-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin: 0 auto 8px; opacity: 0.3;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                <p>Nenhuma transação pendente com data futura</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Calcular saldo acumulado e renderizar
+    let accumulatedBalance = currentBalance;
+    const timelineHtml = futureTransactions.map(t => {
+        // Calcular novo saldo
+        if (t.type === 'income') {
+            accumulatedBalance += t.amount;
+        } else {
+            accumulatedBalance -= t.amount;
+        }
+        
+        // Determinar classe de alerta
+        let balanceClass = 'positive';
+        if (accumulatedBalance < 0) {
+            balanceClass = 'negative';
+        } else if (accumulatedBalance < 500) {
+            balanceClass = 'warning';
+        }
+        
+        // Formatar data
+        const dueDate = new Date(t.due_date + 'T00:00:00');
+        const isToday = dueDate.getTime() === today.getTime();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const isTomorrow = dueDate.getTime() === tomorrow.getTime();
+        
+        let dateLabel;
+        if (isToday) {
+            dateLabel = 'Hoje';
+        } else if (isTomorrow) {
+            dateLabel = 'Amanhã';
+        } else {
+            const day = String(dueDate.getDate()).padStart(2, '0');
+            const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+            dateLabel = `${day}/${month}`;
+        }
+        
+        return `
+            <div class="cashflow-item ${t.type}">
+                <div class="cashflow-item-header">
+                    <div class="cashflow-item-date">${dateLabel}</div>
+                    <div class="cashflow-item-amount ${t.type}">
+                        ${t.type === 'income' ? '+' : '-'} ${formatCurrency(t.amount)}
+                    </div>
+                </div>
+                <div class="cashflow-item-description">${escapeHtml(t.description)}</div>
+                <div class="cashflow-item-footer">
+                    <div class="cashflow-item-category">${escapeHtml(t.category)}</div>
+                    <div class="cashflow-item-balance ${balanceClass}">
+                        Saldo: ${formatCurrency(accumulatedBalance)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    cashflowItems.innerHTML = timelineHtml;
+}
+
+function toggleCashflowTimeline() {
+    const content = document.getElementById('cashflow-content');
+    const toggle = document.getElementById('cashflow-toggle');
+    
+    if (!content || !toggle) return;
+    
+    const isExpanded = content.classList.contains('expanded');
+    
+    if (isExpanded) {
+        content.classList.remove('expanded');
+        toggle.classList.remove('expanded');
+        localStorage.setItem('cashflow_timeline_expanded', 'false');
+    } else {
+        content.classList.add('expanded');
+        toggle.classList.add('expanded');
+        localStorage.setItem('cashflow_timeline_expanded', 'true');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ==========================================
