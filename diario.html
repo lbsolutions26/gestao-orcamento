@@ -575,6 +575,11 @@
             font-weight: 600;
             color: var(--text-muted);
             white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .cashflow-point:hover .cashflow-point-date {
+            opacity: 1;
         }
         .cashflow-point-value {
             position: absolute;
@@ -587,6 +592,11 @@
             border-radius: 4px;
             background: rgba(255,255,255,0.95);
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .cashflow-point:hover .cashflow-point-value {
+            opacity: 1;
         }
         .cashflow-point.income .cashflow-point-value {
             color: var(--success);
