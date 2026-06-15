@@ -496,7 +496,7 @@
         .cashflow-chart-container {
             min-width: 600px;
             position: relative;
-            padding: 40px 0;
+            padding: 40px 0 50px 0;
         }
         .cashflow-axis {
             position: relative;
@@ -647,6 +647,31 @@
         }
         .cashflow-tooltip-balance.negative {
             color: #ef4444;
+        }
+        .cashflow-date-markers {
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            pointer-events: none;
+        }
+        .cashflow-date-marker {
+            position: absolute;
+            transform: translateX(-50%);
+        }
+        .cashflow-date-tick {
+            width: 1px;
+            height: 6px;
+            background: var(--text-muted);
+            opacity: 0.4;
+            margin: 0 auto 2px;
+        }
+        .cashflow-date-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
         }
         .cashflow-balance-line {
             position: absolute;
@@ -3450,6 +3475,7 @@ function renderCashflowChart() {
     
     // Renderizar gráfico
     const pointsHtml = [];
+    const dateMarkersHtml = [];
     accBalance = currentBalance;
     
     futureTransactions.forEach((t, index) => {
@@ -3494,10 +3520,30 @@ function renderCashflowChart() {
                 </div>
             </div>
         `);
+        
+        // Adicionar marcador de data (apenas alguns para não poluir)
+        // Mostrar a cada 3 transações ou se for a primeira/última
+        if (index === 0 || index === futureTransactions.length - 1 || index % 3 === 0) {
+            dateMarkersHtml.push(`
+                <div class="cashflow-date-marker" style="left: ${leftPercent}%;">
+                    <div class="cashflow-date-tick"></div>
+                    <div class="cashflow-date-label">${dateLabel}</div>
+                </div>
+            `);
+        }
     });
     
     // Linha do eixo zero
     const zeroPercent = ((0 - minBalance) / (maxBalance - minBalance)) * 100;
+    
+    // Debug temporário
+    console.log('Cashflow Chart Debug:', {
+        minBalance,
+        maxBalance,
+        zeroPercent,
+        currentBalance,
+        range: maxBalance - minBalance
+    });
     
     cashflowChart.innerHTML = `
         <div class="cashflow-chart-container">
@@ -3510,6 +3556,9 @@ function renderCashflowChart() {
                 <div class="cashflow-axis-line" style="bottom: ${zeroPercent}%;"></div>
                 <div class="cashflow-points">
                     ${pointsHtml.join('')}
+                </div>
+                <div class="cashflow-date-markers">
+                    ${dateMarkersHtml.join('')}
                 </div>
             </div>
         </div>
