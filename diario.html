@@ -525,10 +525,18 @@
             position: relative;
             height: 100%;
         }
+        .cashflow-point-wrapper {
+            position: absolute;
+            width: 1px; /* Apenas para referência, a linha e o ponto são posicionados dentro */
+            pointer-events: none;
+        }
         .cashflow-point {
             position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             cursor: pointer;
             transition: all 0.2s;
+            pointer-events: auto;
         }
         .cashflow-point-marker {
             width: 12px;
@@ -536,9 +544,7 @@
             border-radius: 50%;
             border: 2px solid white;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            transition: all 0.2s;
         }
         .cashflow-point.income .cashflow-point-marker {
             background: var(--success);
@@ -557,12 +563,12 @@
             width: 2px;
             background: currentColor;
             opacity: 0.3;
-            transform: translateX(-1px);
+            transform: translateX(-50%);
         }
-        .cashflow-point.income .cashflow-point-line {
+        .cashflow-point-wrapper:has(.cashflow-point.income) .cashflow-point-line {
             color: var(--success);
         }
-        .cashflow-point.expense .cashflow-point-line {
+        .cashflow-point-wrapper:has(.cashflow-point.expense) .cashflow-point-line {
             color: var(--danger);
         }
         .cashflow-point-date {
@@ -3461,8 +3467,11 @@ function renderCashflowChart() {
         // Calcular posição
         const leftPercent = ((index + 1) / (futureTransactions.length + 1)) * 100;
         
-        // Calcular altura (normalizada entre 0 e 100%)
+        // Calcular altura (normalizada entre 0 e 100%) - quanto maior o saldo, maior o bottom%
         const heightPercent = ((accBalance - minBalance) / (maxBalance - minBalance)) * 100;
+        
+        // Calcular posição do zero na mesma escala
+        const zeroPercent = ((0 - minBalance) / (maxBalance - minBalance)) * 100;
         
         // Data
         const dueDate = new Date(t.due_date + 'T00:00:00');
@@ -3470,26 +3479,21 @@ function renderCashflowChart() {
         const month = String(dueDate.getMonth() + 1).padStart(2, '0');
         const dateLabel = `${day}/${month}`;
         
-        // Linha vertical
-        const isAboveZero = accBalance >= 0;
-        const zeroPercent = ((0 - minBalance) / (maxBalance - minBalance)) * 100;
-        
-        let lineTop, lineHeight;
-        if (isAboveZero) {
-            lineTop = zeroPercent;
-            lineHeight = heightPercent - zeroPercent;
-        } else {
-            lineTop = heightPercent;
-            lineHeight = zeroPercent - heightPercent;
-        }
+        // Linha vertical conectando ponto ao eixo zero
+        // A linha é posicionada em relação ao container .cashflow-axis, não ao ponto
+        const lineBottom = Math.min(heightPercent, zeroPercent);
+        const lineTop = Math.max(heightPercent, zeroPercent);
+        const lineHeight = lineTop - lineBottom;
         
         pointsHtml.push(`
-            <div class="cashflow-point ${txType}" style="left: ${leftPercent}%; bottom: ${heightPercent}%;"
-                 data-tx-index="${index}"
-                 data-date="${dateLabel}"
-                 data-balance="${accBalance}">
-                <div class="cashflow-point-line" style="top: ${100 - lineTop}%; height: ${lineHeight}%;"></div>
-                <div class="cashflow-point-marker"></div>
+            <div class="cashflow-point-wrapper" style="left: ${leftPercent}%; bottom: 0; height: 100%;">
+                <div class="cashflow-point-line" style="bottom: ${lineBottom}%; height: ${lineHeight}%;"></div>
+                <div class="cashflow-point ${txType}" style="bottom: ${heightPercent}%;"
+                     data-tx-index="${index}"
+                     data-date="${dateLabel}"
+                     data-balance="${accBalance}">
+                    <div class="cashflow-point-marker"></div>
+                </div>
             </div>
         `);
     });
