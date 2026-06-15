@@ -505,7 +505,6 @@
         }
         .cashflow-axis-line {
             position: absolute;
-            top: 50%;
             left: 0;
             right: 0;
             height: 2px;
@@ -514,7 +513,6 @@
         }
         .cashflow-axis-zero {
             position: absolute;
-            top: 50%;
             left: -30px;
             transform: translateY(-50%);
             font-size: 0.75rem;
@@ -3508,7 +3506,7 @@ function renderCashflowChart() {
                 <div class="cashflow-tooltip-balance"></div>
             </div>
             <div class="cashflow-axis">
-                <div class="cashflow-axis-zero">R$ 0</div>
+                <div class="cashflow-axis-zero" style="bottom: ${zeroPercent}%;">R$ 0</div>
                 <div class="cashflow-axis-line" style="bottom: ${zeroPercent}%;"></div>
                 <div class="cashflow-points">
                     ${pointsHtml.join('')}
