@@ -198,6 +198,27 @@
         .month-switcher button:active { background: rgba(255,255,255,0.2); }
         .month-label { font-weight: 600; font-size: 1rem; text-transform: capitalize; }
 
+        .summary-mode-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        .summary-mode-row select {
+            background: rgba(255,255,255,0.18);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+        .summary-mode-row select option {
+            color: #111827;
+            background: white;
+        }
+
         /* Summary */
         .summary {
             display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
@@ -941,13 +962,20 @@
             </button>
         </div>
 
+        <div class="summary-mode-row">
+            <select id="summary-mode" aria-label="Modo dos cards de resumo">
+                <option value="planned">Cards: Previstas + realizadas</option>
+                <option value="realized">Cards: Somente realizadas</option>
+            </select>
+        </div>
+
         <div class="summary">
             <div class="summary-card pending clickable" id="card-pending" title="Ver despesas por categoria">
-                <div class="lbl">A Pagar</div>
+                <div class="lbl" id="sum-pending-label">A Pagar</div>
                 <div class="val" id="sum-pending">R$ 0</div>
             </div>
             <div class="summary-card income clickable" id="card-income" title="Ver receitas por categoria">
-                <div class="lbl">A Receber</div>
+                <div class="lbl" id="sum-income-label">A Receber</div>
                 <div class="val" id="sum-income">R$ 0</div>
             </div>
             <div class="summary-card balance clickable" id="card-balance" title="Ver detalhes do saldo do mês">
@@ -1306,6 +1334,7 @@ const state = {
     viewYear: null,
     viewMonth: null,      // 0-11
     activeTab: 'month',
+    summaryMode: 'planned', // planned = previstas+realizadas, realized = somente pagas/recebidas
     currentGroupKey: null, // identifica a "conta" aberta no modal
     filters: {            // filtros por aba
         month:     { type: 'all', search: '', category: 'all', supplier: 'all' },
@@ -1819,6 +1848,15 @@ function setupEvents() {
         if (cat) cat.addEventListener('change', () => { state.filters[tab].category = cat.value; render(); });
         if (sup) sup.addEventListener('change', () => { state.filters[tab].supplier = sup.value; render(); });
     });
+
+    const summaryModeSel = document.getElementById('summary-mode');
+    if (summaryModeSel) {
+        summaryModeSel.value = state.summaryMode;
+        summaryModeSel.addEventListener('change', () => {
+            state.summaryMode = summaryModeSel.value === 'realized' ? 'realized' : 'planned';
+            render();
+        });
+    }
     
     // Budget events
     // Event listeners para abas de tipo de orçamento
@@ -1895,8 +1933,8 @@ function setupEvents() {
     });
 
     // Cards clicáveis: A Pagar / A Receber → gráfico por categoria
-    document.getElementById('card-pending').addEventListener('click', () => openChartModal('expense'));
-    document.getElementById('card-income').addEventListener('click', () => openChartModal('income'));
+    document.getElementById('card-pending').addEventListener('click', () => openChartModal('expense', state.summaryMode));
+    document.getElementById('card-income').addEventListener('click', () => openChartModal('income', state.summaryMode));
     document.getElementById('card-balance').addEventListener('click', showBalanceDetailModal);
     document.getElementById('chart-modal-close').addEventListener('click', closeChartModal);
     document.getElementById('chart-modal-overlay').addEventListener('click', (e) => {
@@ -2514,16 +2552,42 @@ function render() {
         return y === state.viewYear && m === state.viewMonth;
     });
 
-    // Sumários SEMPRE consideram o mês inteiro (não os filtros das abas)
+    // Sumários dos cards podem alternar entre previstas+realizadas ou somente realizadas
+    const summaryMode = state.summaryMode || 'planned';
     const expensesAll = monthTx.filter(t => (t.type || 'expense') === 'expense');
     const incomesAll  = monthTx.filter(t => t.type === 'income');
     const expPending  = expensesAll.filter(t => !isPaid(t)).reduce((s, t) => s + Number(t.amount || 0), 0);
     const incPending  = incomesAll.filter(t => !isPaid(t)).reduce((s, t) => s + Number(t.amount || 0), 0);
     const totalInc    = incomesAll.reduce((s, t) => s + Number(t.amount || 0), 0);
     const totalExp    = expensesAll.reduce((s, t) => s + Number(t.amount || 0), 0);
-    document.getElementById('sum-pending').textContent = fmtMoneyShort(expPending);
-    document.getElementById('sum-income').textContent  = fmtMoneyShort(incPending);
-    const saldo = totalInc - totalExp;
+    const totalIncRealized = incomesAll.filter(isPaid).reduce((s, t) => s + Number(t.amount || 0), 0);
+    const totalExpRealized = expensesAll.filter(isPaid).reduce((s, t) => s + Number(t.amount || 0), 0);
+    const pendingEl = document.getElementById('sum-pending');
+    const incomeEl = document.getElementById('sum-income');
+    const pendingLblEl = document.getElementById('sum-pending-label');
+    const incomeLblEl = document.getElementById('sum-income-label');
+    const cardPending = document.getElementById('card-pending');
+    const cardIncome = document.getElementById('card-income');
+
+    if (summaryMode === 'realized') {
+        pendingEl.textContent = fmtMoneyShort(totalExpRealized);
+        incomeEl.textContent = fmtMoneyShort(totalIncRealized);
+        if (pendingLblEl) pendingLblEl.textContent = 'Despesas pagas';
+        if (incomeLblEl) incomeLblEl.textContent = 'Receitas recebidas';
+        if (cardPending) cardPending.title = 'Ver despesas pagas por categoria';
+        if (cardIncome) cardIncome.title = 'Ver receitas recebidas por categoria';
+    } else {
+        pendingEl.textContent = fmtMoneyShort(expPending);
+        incomeEl.textContent = fmtMoneyShort(incPending);
+        if (pendingLblEl) pendingLblEl.textContent = 'A Pagar';
+        if (incomeLblEl) incomeLblEl.textContent = 'A Receber';
+        if (cardPending) cardPending.title = 'Ver despesas por categoria';
+        if (cardIncome) cardIncome.title = 'Ver receitas por categoria';
+    }
+
+    const saldo = summaryMode === 'realized'
+        ? (totalIncRealized - totalExpRealized)
+        : (totalInc - totalExp);
     const elS = document.getElementById('sum-balance');
     elS.textContent = fmtMoneyShort(saldo);
     elS.style.color = saldo < 0 ? 'var(--danger)' : 'var(--success)';
@@ -2542,7 +2606,9 @@ function render() {
     }, 0);
     const elA = document.getElementById('sum-balance-accum');
     if (elA) {
-        elA.textContent = 'Real: ' + fmtMoneyShort(accum);
+        elA.textContent = summaryMode === 'realized'
+            ? ('Acumulado: ' + fmtMoneyShort(accum))
+            : ('Real: ' + fmtMoneyShort(accum));
         elA.style.color = accum < 0 ? 'var(--danger)' : 'var(--success)';
     }
 
@@ -2971,20 +3037,24 @@ function closeModal() {
     state.currentGroupKey = null;
 }
 
-function openChartModal(type) {
+function openChartModal(type, mode = 'planned') {
     const isIncome = type === 'income';
     const monthTx = state.allTx.filter(t => {
         const { y, m } = txMonth(t);
         return y === state.viewYear && m === state.viewMonth
             && (t.type || 'expense') === type
-            && !isPaid(t);
+            && (mode === 'realized' ? isPaid(t) : !isPaid(t));
     });
-    document.getElementById('chart-modal-title').textContent = isIncome ? '💵 A Receber por categoria' : '💳 A Pagar por categoria';
+    if (mode === 'realized') {
+        document.getElementById('chart-modal-title').textContent = isIncome ? '💵 Receitas recebidas por categoria' : '💳 Despesas pagas por categoria';
+    } else {
+        document.getElementById('chart-modal-title').textContent = isIncome ? '💵 A Receber por categoria' : '💳 A Pagar por categoria';
+    }
     document.getElementById('chart-modal-sub').textContent = monthName(state.viewYear, state.viewMonth);
 
     const body = document.getElementById('chart-body');
     if (monthTx.length === 0) {
-        body.innerHTML = `<div class="chart-empty">Nenhum lançamento pendente neste mês.</div>`;
+        body.innerHTML = `<div class="chart-empty">${mode === 'realized' ? 'Nenhum lançamento realizado neste mês.' : 'Nenhum lançamento pendente neste mês.'}</div>`;
     } else {
         const byCat = {};
         monthTx.forEach(t => {
@@ -2999,7 +3069,7 @@ function openChartModal(type) {
             const pct = max > 0 ? (v / max) * 100 : 0;
             const pctTotal = total > 0 ? (v / total) * 100 : 0;
             return `
-            <div class="chart-row" data-category="${escapeHtml(cat)}" data-type="${type}">
+            <div class="chart-row" data-category="${escapeHtml(cat)}" data-type="${type}" data-mode="${mode}">
                 <div class="chart-row-head">
                     <span class="cat">${escapeHtml(cat)} <small style="opacity:.7;font-weight:500;">(${pctTotal.toFixed(0)}%)</small></span>
                     <span class="val">${fmtMoney(v)}</span>
@@ -3017,7 +3087,8 @@ function openChartModal(type) {
             row.addEventListener('click', (e) => {
                 const category = row.dataset.category;
                 const rowType = row.dataset.type;
-                showDrillOptions(category, rowType);
+                const rowMode = row.dataset.mode || 'planned';
+                showDrillOptions(category, rowType, rowMode);
             });
         });
     }
@@ -3032,22 +3103,24 @@ function closeChartModal() {
 
 // ===== Drill-down (clique em categoria do gráfico) =====
 
-function showDrillOptions(category, type) {
+function showDrillOptions(category, type, mode = 'planned') {
     const isIncome = type === 'income';
     const emoji = isIncome ? '💵' : '💳';
     
     document.getElementById('drill-modal-title').textContent = `${emoji} ${category}`;
-    document.getElementById('drill-modal-sub').textContent = 'Selecione uma opção';
+    document.getElementById('drill-modal-sub').textContent = mode === 'realized'
+        ? 'Somente lançamentos realizados'
+        : 'Selecione uma opção';
     
     const body = document.getElementById('drill-body');
     body.innerHTML = `
         <div class="drill-options">
-            <button class="drill-btn" id="drill-btn-history" data-category="${escapeHtml(category)}" data-type="${type}">
+            <button class="drill-btn" id="drill-btn-history" data-category="${escapeHtml(category)}" data-type="${type}" data-mode="${mode}">
                 <div class="drill-btn-icon">📊</div>
                 <div class="drill-btn-label">Histórico</div>
                 <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Últimos 6 meses</div>
             </button>
-            <button class="drill-btn" id="drill-btn-detail" data-category="${escapeHtml(category)}" data-type="${type}">
+            <button class="drill-btn" id="drill-btn-detail" data-category="${escapeHtml(category)}" data-type="${type}" data-mode="${mode}">
                 <div class="drill-btn-icon">📝</div>
                 <div class="drill-btn-label">Detalhes</div>
                 <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Lançamentos do mês</div>
@@ -3058,19 +3131,21 @@ function showDrillOptions(category, type) {
     document.getElementById('drill-btn-history').addEventListener('click', (e) => {
         const cat = e.currentTarget.dataset.category;
         const tp = e.currentTarget.dataset.type;
-        showCategoryHistory(cat, tp);
+        const md = e.currentTarget.dataset.mode || 'planned';
+        showCategoryHistory(cat, tp, md);
     });
     
     document.getElementById('drill-btn-detail').addEventListener('click', (e) => {
         const cat = e.currentTarget.dataset.category;
         const tp = e.currentTarget.dataset.type;
-        showCategoryDetail(cat, tp);
+        const md = e.currentTarget.dataset.mode || 'planned';
+        showCategoryDetail(cat, tp, md);
     });
     
     document.getElementById('drill-modal-overlay').classList.add('open');
 }
 
-function showCategoryHistory(category, type) {
+function showCategoryHistory(category, type, mode = 'planned') {
     const isIncome = type === 'income';
     const emoji = isIncome ? '💵' : '💳';
     
@@ -3090,7 +3165,8 @@ function showCategoryHistory(category, type) {
             const { y: ty, m: tm } = txMonth(t);
             return ty === y && tm === m 
                 && (t.type || 'expense') === type 
-                && (t.category || '(Sem categoria)') === category;
+                && (t.category || '(Sem categoria)') === category
+                && (mode === 'realized' ? isPaid(t) : !isPaid(t));
         });
         
         const total = monthTx.reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -3123,7 +3199,7 @@ function showCategoryHistory(category, type) {
     body.innerHTML = `<div class="timeline-chart">${rows}</div>`;
 }
 
-function showCategoryDetail(category, type) {
+function showCategoryDetail(category, type, mode = 'planned') {
     const isIncome = type === 'income';
     const emoji = isIncome ? '💵' : '💳';
     
@@ -3134,7 +3210,8 @@ function showCategoryDetail(category, type) {
         const { y, m } = txMonth(t);
         return y === state.viewYear && m === state.viewMonth
             && (t.type || 'expense') === type
-            && (t.category || '(Sem categoria)') === category;
+            && (t.category || '(Sem categoria)') === category
+            && (mode === 'realized' ? isPaid(t) : !isPaid(t));
     });
     
     const body = document.getElementById('drill-body');
@@ -3183,13 +3260,18 @@ function showCategoryDetail(category, type) {
 }
 
 function showBalanceDetailModal() {
+    const summaryMode = state.summaryMode || 'planned';
     const monthTx = state.allTx.filter(t => {
         const { y, m } = txMonth(t);
         return y === state.viewYear && m === state.viewMonth;
     });
 
-    const incomes = monthTx.filter(t => (t.type || 'expense') === 'income');
-    const expenses = monthTx.filter(t => (t.type || 'expense') === 'expense');
+    const scopedMonthTx = summaryMode === 'realized'
+        ? monthTx.filter(isPaid)
+        : monthTx;
+
+    const incomes = scopedMonthTx.filter(t => (t.type || 'expense') === 'income');
+    const expenses = scopedMonthTx.filter(t => (t.type || 'expense') === 'expense');
 
     const totalIncome = incomes.reduce((s, t) => s + Number(t.amount || 0), 0);
     const totalExpense = expenses.reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -3207,14 +3289,14 @@ function showBalanceDetailModal() {
         return s + ((t.type === 'income') ? v : -v);
     }, 0);
 
-    const sortedTx = [...monthTx].sort((a, b) => {
+    const sortedTx = [...scopedMonthTx].sort((a, b) => {
         const dateA = new Date(a.date || a.due_date || 0);
         const dateB = new Date(b.date || b.due_date || 0);
         return dateB - dateA;
     });
 
     document.getElementById('drill-modal-title').textContent = '📈 Saldo do mês — Detalhes';
-    document.getElementById('drill-modal-sub').textContent = monthName(state.viewYear, state.viewMonth);
+    document.getElementById('drill-modal-sub').textContent = `${monthName(state.viewYear, state.viewMonth)} · ${summaryMode === 'realized' ? 'Somente realizadas' : 'Previstas + realizadas'}`;
 
     const body = document.getElementById('drill-body');
     if (sortedTx.length === 0) {
