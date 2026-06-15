@@ -429,9 +429,11 @@
             padding: 8px 14px;
             background: var(--bg);
             border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
         }
         .cashflow-view-btn {
             flex: 1;
+            min-width: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -457,6 +459,32 @@
         }
         .cashflow-view-btn svg {
             stroke: currentColor;
+        }
+        .cashflow-period-filter {
+            width: 100%;
+            display: flex;
+            gap: 4px;
+            padding: 8px 0 0;
+        }
+        .cashflow-period-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cashflow-period-btn:hover {
+            background: var(--bg);
+        }
+        .cashflow-period-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
         /* ===== Cashflow Chart (Horizontal Timeline) ===== */
@@ -1470,6 +1498,14 @@
                         </svg>
                         Gráfico
                     </button>
+                    <div class="cashflow-period-filter">
+                        <button class="cashflow-period-btn" data-period="7">7d</button>
+                        <button class="cashflow-period-btn" data-period="15">15d</button>
+                        <button class="cashflow-period-btn active" data-period="30">30d</button>
+                        <button class="cashflow-period-btn" data-period="60">60d</button>
+                        <button class="cashflow-period-btn" data-period="90">90d</button>
+                        <button class="cashflow-period-btn" data-period="all">Tudo</button>
+                    </div>
                 </div>
                 <div class="cashflow-items" id="cashflow-items">
                     <!-- Items serão inseridos dinamicamente via JavaScript -->
@@ -1844,6 +1880,7 @@ const state = {
     activeTab: 'month',
     summaryMode: 'planned', // planned = previstas+realizadas, realized = somente pagas/recebidas
     currentGroupKey: null, // identifica a "conta" aberta no modal
+    cashflowPeriod: 30,   // período em dias para visualização do fluxo de caixa (ou 'all')
     filters: {            // filtros por aba
         month:     { type: 'all', search: '', category: 'all', supplier: 'all' },
         recurring: { type: 'all', search: '', category: 'all', supplier: 'all' },
@@ -2508,6 +2545,43 @@ function setupEvents() {
             if (e.target.id === 'cashflow-detail-overlay') closeCashflowDetail();
         });
     }
+    
+    // Cashflow Period Filter
+    document.querySelectorAll('.cashflow-period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const period = btn.dataset.period;
+            setCashflowPeriod(period);
+        });
+    });
+    
+    // Restaurar período salvo
+    const savedPeriod = localStorage.getItem('cashflow_period') || '30';
+    setCashflowPeriod(savedPeriod, false);
+}
+
+function setCashflowPeriod(period, render = true) {
+    state.cashflowPeriod = period === 'all' ? 'all' : parseInt(period);
+    
+    // Atualizar botões
+    document.querySelectorAll('.cashflow-period-btn').forEach(btn => {
+        if (btn.dataset.period === String(period)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Salvar preferência
+    localStorage.setItem('cashflow_period', period);
+    
+    // Re-renderizar se necessário
+    if (render) {
+        renderCashflowTimeline();
+        const currentView = localStorage.getItem('cashflow_view_mode') || 'list';
+        if (currentView === 'chart') {
+            renderCashflowChart();
+        }
+    }
 }
 
 function openDrawer() {
@@ -3147,13 +3221,23 @@ function renderCashflowTimeline() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Calcular data limite baseado no período selecionado
+    let maxDate = null;
+    if (state.cashflowPeriod !== 'all') {
+        maxDate = new Date(today);
+        maxDate.setDate(maxDate.getDate() + parseInt(state.cashflowPeriod));
+    }
+    
     const futureTransactions = state.allTx.filter(t => {
         if (isPaid(t)) return false;
         if (!t.due_date) return false;
         if (t.affects_balance === false) return false; // Não incluir compras no cartão
         
         const dueDate = new Date(t.due_date + 'T00:00:00');
-        return dueDate >= today;
+        if (dueDate < today) return false;
+        if (maxDate && dueDate > maxDate) return false;
+        
+        return true;
     });
     
     // Ordenar por data
@@ -3258,12 +3342,21 @@ function renderCashflowChart() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Calcular data limite baseado no período selecionado
+    let maxDate = null;
+    if (state.cashflowPeriod !== 'all') {
+        maxDate = new Date(today);
+        maxDate.setDate(maxDate.getDate() + parseInt(state.cashflowPeriod));
+    }
+    
     const futureTransactions = state.allTx.filter(t => {
         if (isPaid(t)) return false;
         if (!t.due_date) return false;
         if (t.affects_balance === false) return false;
         const dueDate = new Date(t.due_date + 'T00:00:00');
-        return dueDate >= today;
+        if (dueDate < today) return false;
+        if (maxDate && dueDate > maxDate) return false;
+        return true;
     }).sort((a, b) => {
         const dateA = new Date(a.due_date + 'T00:00:00');
         const dateB = new Date(b.due_date + 'T00:00:00');
