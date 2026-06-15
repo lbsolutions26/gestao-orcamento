@@ -422,6 +422,246 @@
             font-size: 0.85rem;
         }
 
+        /* ===== Cashflow View Toggle ===== */
+        .cashflow-view-toggle {
+            display: flex;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+        .cashflow-view-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cashflow-view-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+        .cashflow-view-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .cashflow-view-btn svg {
+            stroke: currentColor;
+        }
+
+        /* ===== Cashflow Chart (Horizontal Timeline) ===== */
+        .cashflow-chart {
+            padding: 20px 14px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .cashflow-chart-container {
+            min-width: 600px;
+            position: relative;
+            padding: 40px 0;
+        }
+        .cashflow-axis {
+            position: relative;
+            height: 200px;
+            margin: 20px 0;
+        }
+        .cashflow-axis-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border);
+            transform: translateY(-1px);
+        }
+        .cashflow-axis-zero {
+            position: absolute;
+            top: 50%;
+            left: -30px;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+        .cashflow-points {
+            position: relative;
+            height: 100%;
+        }
+        .cashflow-point {
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cashflow-point-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .cashflow-point.income .cashflow-point-marker {
+            background: var(--success);
+        }
+        .cashflow-point.expense .cashflow-point-marker {
+            background: var(--danger);
+        }
+        .cashflow-point:hover .cashflow-point-marker {
+            width: 16px;
+            height: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        .cashflow-point-line {
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            background: currentColor;
+            opacity: 0.3;
+            transform: translateX(-1px);
+        }
+        .cashflow-point.income .cashflow-point-line {
+            color: var(--success);
+        }
+        .cashflow-point.expense .cashflow-point-line {
+            color: var(--danger);
+        }
+        .cashflow-point-date {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 8px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .cashflow-point-value {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .cashflow-point.income .cashflow-point-value {
+            color: var(--success);
+            bottom: 100%;
+            margin-bottom: 4px;
+        }
+        .cashflow-point.expense .cashflow-point-value {
+            color: var(--danger);
+            top: 100%;
+            margin-top: 4px;
+        }
+        .cashflow-balance-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            pointer-events: none;
+        }
+        .cashflow-balance-path {
+            stroke: var(--primary);
+            stroke-width: 2;
+            fill: none;
+            filter: drop-shadow(0 2px 4px rgba(99,102,241,0.2));
+        }
+
+        /* ===== Cashflow Detail Modal ===== */
+        .cashflow-detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .cashflow-detail-overlay.active {
+            display: flex;
+        }
+        .cashflow-detail-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .cashflow-detail-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cashflow-detail-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .cashflow-detail-close {
+            background: var(--bg);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+        .cashflow-detail-body {
+            padding: 20px;
+        }
+        .cashflow-detail-item {
+            margin-bottom: 16px;
+        }
+        .cashflow-detail-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .cashflow-detail-value {
+            font-size: 1rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+        .cashflow-detail-value.large {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .cashflow-detail-value.income {
+            color: var(--success);
+        }
+        .cashflow-detail-value.expense {
+            color: var(--danger);
+        }
+
         /* ===== Budgets Section ===== */
         .budgets-section {
             background: white;
@@ -1211,8 +1451,31 @@
                     <div class="cashflow-current-label">Saldo Atual</div>
                     <div class="cashflow-current-value" id="cashflow-current-balance">R$ 0</div>
                 </div>
+                <div class="cashflow-view-toggle">
+                    <button class="cashflow-view-btn active" data-view="list">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                        Lista
+                    </button>
+                    <button class="cashflow-view-btn" data-view="chart">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path d="M3 3v18h18"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                        </svg>
+                        Gráfico
+                    </button>
+                </div>
                 <div class="cashflow-items" id="cashflow-items">
                     <!-- Items serão inseridos dinamicamente via JavaScript -->
+                </div>
+                <div class="cashflow-chart" id="cashflow-chart" style="display: none;">
+                    <!-- Gráfico será renderizado aqui -->
                 </div>
             </div>
         </div>
@@ -1546,6 +1809,19 @@
         </a></li>
     </ul>
 </aside>
+
+<!-- Modal: Detalhes da Transação (Cashflow) -->
+<div id="cashflow-detail-overlay" class="cashflow-detail-overlay">
+    <div class="cashflow-detail-modal">
+        <div class="cashflow-detail-header">
+            <div class="cashflow-detail-title">Detalhes da Transação</div>
+            <button class="cashflow-detail-close" id="cashflow-detail-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="cashflow-detail-body" id="cashflow-detail-body">
+            <!-- Conteúdo será inserido dinamicamente -->
+        </div>
+    </div>
+</div>
 
 <script>
 'use strict';
@@ -2203,6 +2479,34 @@ function setupEvents() {
                 cashflowToggle.classList.add('expanded');
             }
         }
+    }
+    
+    // Cashflow View Toggle (Lista vs Gráfico)
+    document.querySelectorAll('.cashflow-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            switchCashflowView(btn.dataset.view);
+        });
+    });
+    
+    // Restaurar modo de visualização
+    const savedViewMode = localStorage.getItem('cashflow_view_mode') || 'list';
+    if (savedViewMode === 'chart') {
+        const chartBtn = document.querySelector('.cashflow-view-btn[data-view="chart"]');
+        if (chartBtn) {
+            setTimeout(() => switchCashflowView('chart'), 100);
+        }
+    }
+    
+    // Cashflow Detail Modal
+    const cashflowDetailClose = document.getElementById('cashflow-detail-close');
+    const cashflowDetailOverlay = document.getElementById('cashflow-detail-overlay');
+    if (cashflowDetailClose) {
+        cashflowDetailClose.addEventListener('click', closeCashflowDetail);
+    }
+    if (cashflowDetailOverlay) {
+        cashflowDetailOverlay.addEventListener('click', (e) => {
+            if (e.target.id === 'cashflow-detail-overlay') closeCashflowDetail();
+        });
     }
 }
 
@@ -2930,6 +3234,250 @@ function renderCashflowTimeline() {
     }).join('');
     
     cashflowItems.innerHTML = timelineHtml;
+}
+
+function renderCashflowChart() {
+    const cashflowChart = document.getElementById('cashflow-chart');
+    
+    if (!cashflowChart) return;
+    
+    // Calcular saldo atual
+    const endOfMonth = new Date(state.viewYear, state.viewMonth + 1, 0, 23, 59, 59);
+    const currentBalance = state.allTx.reduce((s, t) => {
+        if (!isPaid(t)) return s;
+        if (t.affects_balance === false) return s;
+        const dateStr = t.payment_date || t.due_date || t.date;
+        if (!dateStr) return s;
+        const d = new Date(dateStr);
+        if (d > endOfMonth) return s;
+        const v = Number(t.amount || 0);
+        return s + ((t.type === 'income') ? v : -v);
+    }, 0);
+    
+    // Pegar transações futuras
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const futureTransactions = state.allTx.filter(t => {
+        if (isPaid(t)) return false;
+        if (!t.due_date) return false;
+        if (t.affects_balance === false) return false;
+        const dueDate = new Date(t.due_date + 'T00:00:00');
+        return dueDate >= today;
+    }).sort((a, b) => {
+        const dateA = new Date(a.due_date + 'T00:00:00');
+        const dateB = new Date(b.due_date + 'T00:00:00');
+        return dateA - dateB;
+    });
+    
+    if (futureTransactions.length === 0) {
+        cashflowChart.innerHTML = `
+            <div class="cashflow-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin: 0 auto 8px; opacity: 0.3;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                <p>Nenhuma transação pendente com data futura</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Calcular min/max para escala
+    let minBalance = currentBalance;
+    let maxBalance = currentBalance;
+    let accBalance = currentBalance;
+    
+    futureTransactions.forEach(t => {
+        const txType = t.type || 'expense';
+        if (txType === 'income') {
+            accBalance += Number(t.amount || 0);
+        } else {
+            accBalance -= Number(t.amount || 0);
+        }
+        if (accBalance < minBalance) minBalance = accBalance;
+        if (accBalance > maxBalance) maxBalance = accBalance;
+    });
+    
+    // Adicionar margem
+    const range = Math.max(Math.abs(maxBalance), Math.abs(minBalance));
+    const margin = range * 0.2;
+    minBalance = Math.min(minBalance - margin, -500);
+    maxBalance = Math.max(maxBalance + margin, 500);
+    
+    // Renderizar gráfico
+    const pointsHtml = [];
+    accBalance = currentBalance;
+    
+    futureTransactions.forEach((t, index) => {
+        const txType = t.type || 'expense';
+        const txAmount = Number(t.amount || 0);
+        
+        if (txType === 'income') {
+            accBalance += txAmount;
+        } else {
+            accBalance -= txAmount;
+        }
+        
+        // Calcular posição
+        const leftPercent = ((index + 1) / (futureTransactions.length + 1)) * 100;
+        
+        // Calcular altura (normalizada entre 0 e 100%)
+        const heightPercent = ((accBalance - minBalance) / (maxBalance - minBalance)) * 100;
+        
+        // Data
+        const dueDate = new Date(t.due_date + 'T00:00:00');
+        const day = String(dueDate.getDate()).padStart(2, '0');
+        const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+        const dateLabel = `${day}/${month}`;
+        
+        // Linha vertical
+        const isAboveZero = accBalance >= 0;
+        const zeroPercent = ((0 - minBalance) / (maxBalance - minBalance)) * 100;
+        
+        let lineTop, lineHeight;
+        if (isAboveZero) {
+            lineTop = zeroPercent;
+            lineHeight = heightPercent - zeroPercent;
+        } else {
+            lineTop = heightPercent;
+            lineHeight = zeroPercent - heightPercent;
+        }
+        
+        pointsHtml.push(`
+            <div class="cashflow-point ${txType}" style="left: ${leftPercent}%; bottom: ${heightPercent}%;"
+                 data-tx-index="${index}">
+                <div class="cashflow-point-line" style="top: ${100 - lineTop}%; height: ${lineHeight}%;"></div>
+                <div class="cashflow-point-marker"></div>
+                <div class="cashflow-point-value">${txType === 'income' ? '+' : '-'}${fmtMoneyShort(txAmount)}</div>
+                <div class="cashflow-point-date">${dateLabel}</div>
+            </div>
+        `);
+    });
+    
+    // Linha do eixo zero
+    const zeroPercent = ((0 - minBalance) / (maxBalance - minBalance)) * 100;
+    
+    cashflowChart.innerHTML = `
+        <div class="cashflow-chart-container">
+            <div class="cashflow-axis">
+                <div class="cashflow-axis-zero">R$ 0</div>
+                <div class="cashflow-axis-line" style="bottom: ${zeroPercent}%;"></div>
+                <div class="cashflow-points">
+                    ${pointsHtml.join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar eventos de clique
+    cashflowChart.querySelectorAll('.cashflow-point').forEach(point => {
+        point.addEventListener('click', () => {
+            const index = parseInt(point.dataset.txIndex);
+            openCashflowDetail(futureTransactions[index], currentBalance, futureTransactions.slice(0, index + 1));
+        });
+    });
+}
+
+function openCashflowDetail(transaction, initialBalance, previousTransactions) {
+    const overlay = document.getElementById('cashflow-detail-overlay');
+    const body = document.getElementById('cashflow-detail-body');
+    
+    if (!overlay || !body) return;
+    
+    // Calcular saldo projetado
+    let projectedBalance = initialBalance;
+    previousTransactions.forEach(t => {
+        const txType = t.type || 'expense';
+        const txAmount = Number(t.amount || 0);
+        if (txType === 'income') {
+            projectedBalance += txAmount;
+        } else {
+            projectedBalance -= txAmount;
+        }
+    });
+    
+    // Formatar data
+    const dueDate = new Date(transaction.due_date + 'T00:00:00');
+    const dateLabel = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    const txType = transaction.type || 'expense';
+    const txAmount = Number(transaction.amount || 0);
+    
+    body.innerHTML = `
+        <div class="cashflow-detail-item">
+            <div class="cashflow-detail-label">Tipo</div>
+            <div class="cashflow-detail-value">
+                ${txType === 'income' ? '💰 Receita' : '💸 Despesa'}
+            </div>
+        </div>
+        <div class="cashflow-detail-item">
+            <div class="cashflow-detail-label">Descrição</div>
+            <div class="cashflow-detail-value">${escapeHtml(transaction.description || '—')}</div>
+        </div>
+        <div class="cashflow-detail-item">
+            <div class="cashflow-detail-label">Valor</div>
+            <div class="cashflow-detail-value large ${txType}">
+                ${txType === 'income' ? '+' : '-'} ${fmtMoney(txAmount)}
+            </div>
+        </div>
+        <div class="cashflow-detail-item">
+            <div class="cashflow-detail-label">Data de Vencimento</div>
+            <div class="cashflow-detail-value">${dateLabel}</div>
+        </div>
+        ${transaction.category ? `
+            <div class="cashflow-detail-item">
+                <div class="cashflow-detail-label">Categoria</div>
+                <div class="cashflow-detail-value">${escapeHtml(transaction.category)}</div>
+            </div>
+        ` : ''}
+        ${transaction.supplier ? `
+            <div class="cashflow-detail-item">
+                <div class="cashflow-detail-label">Fornecedor</div>
+                <div class="cashflow-detail-value">${escapeHtml(transaction.supplier)}</div>
+            </div>
+        ` : ''}
+        <div class="cashflow-detail-item" style="border-top: 2px solid var(--border); padding-top: 16px; margin-top: 16px;">
+            <div class="cashflow-detail-label">Saldo Projetado</div>
+            <div class="cashflow-detail-value large ${projectedBalance >= 0 ? 'income' : 'expense'}">
+                ${fmtMoney(projectedBalance)}
+            </div>
+        </div>
+    `;
+    
+    overlay.classList.add('active');
+}
+
+function closeCashflowDetail() {
+    const overlay = document.getElementById('cashflow-detail-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function switchCashflowView(view) {
+    const listView = document.getElementById('cashflow-items');
+    const chartView = document.getElementById('cashflow-chart');
+    const buttons = document.querySelectorAll('.cashflow-view-btn');
+    
+    if (!listView || !chartView) return;
+    
+    buttons.forEach(btn => {
+        if (btn.dataset.view === view) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    if (view === 'chart') {
+        listView.style.display = 'none';
+        chartView.style.display = 'block';
+        renderCashflowChart();
+    } else {
+        listView.style.display = 'block';
+        chartView.style.display = 'none';
+    }
+    
+    localStorage.setItem('cashflow_view_mode', view);
 }
 
 function render() {
