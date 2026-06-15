@@ -950,7 +950,7 @@
                 <div class="lbl">A Receber</div>
                 <div class="val" id="sum-income">R$ 0</div>
             </div>
-            <div class="summary-card balance">
+            <div class="summary-card balance clickable" id="card-balance" title="Ver detalhes do saldo do mês">
                 <div class="lbl">Saldo do mês</div>
                 <div class="val" id="sum-balance">R$ 0</div>
                 <div class="sub" id="sum-balance-accum">Real: R$ 0</div>
@@ -1897,6 +1897,7 @@ function setupEvents() {
     // Cards clicáveis: A Pagar / A Receber → gráfico por categoria
     document.getElementById('card-pending').addEventListener('click', () => openChartModal('expense'));
     document.getElementById('card-income').addEventListener('click', () => openChartModal('income'));
+    document.getElementById('card-balance').addEventListener('click', showBalanceDetailModal);
     document.getElementById('chart-modal-close').addEventListener('click', closeChartModal);
     document.getElementById('chart-modal-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'chart-modal-overlay') closeChartModal();
@@ -3179,6 +3180,122 @@ function showCategoryDetail(category, type) {
             <span>${fmtMoney(total)}</span>
         </div>
     `;
+}
+
+function showBalanceDetailModal() {
+    const monthTx = state.allTx.filter(t => {
+        const { y, m } = txMonth(t);
+        return y === state.viewYear && m === state.viewMonth;
+    });
+
+    const incomes = monthTx.filter(t => (t.type || 'expense') === 'income');
+    const expenses = monthTx.filter(t => (t.type || 'expense') === 'expense');
+
+    const totalIncome = incomes.reduce((s, t) => s + Number(t.amount || 0), 0);
+    const totalExpense = expenses.reduce((s, t) => s + Number(t.amount || 0), 0);
+    const saldoPrevisto = totalIncome - totalExpense;
+
+    const endOfMonth = new Date(state.viewYear, state.viewMonth + 1, 0, 23, 59, 59);
+    const saldoReal = state.allTx.reduce((s, t) => {
+        if (!isPaid(t)) return s;
+        if (t.affects_balance === false) return s;
+        const dateStr = t.payment_date || t.due_date || t.date;
+        if (!dateStr) return s;
+        const d = new Date(dateStr);
+        if (d > endOfMonth) return s;
+        const v = Number(t.amount || 0);
+        return s + ((t.type === 'income') ? v : -v);
+    }, 0);
+
+    const sortedTx = [...monthTx].sort((a, b) => {
+        const dateA = new Date(a.date || a.due_date || 0);
+        const dateB = new Date(b.date || b.due_date || 0);
+        return dateB - dateA;
+    });
+
+    document.getElementById('drill-modal-title').textContent = '📈 Saldo do mês — Detalhes';
+    document.getElementById('drill-modal-sub').textContent = monthName(state.viewYear, state.viewMonth);
+
+    const body = document.getElementById('drill-body');
+    if (sortedTx.length === 0) {
+        body.innerHTML = `<div class="detail-empty">Nenhum lançamento encontrado neste mês.</div>`;
+        document.getElementById('drill-modal-overlay').classList.add('open');
+        return;
+    }
+
+    const summaryHtml = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div class="detail-item" style="padding:10px;">
+                <div class="detail-item-left">
+                    <div class="detail-item-meta">Receitas do mês</div>
+                    <div class="detail-item-desc" style="color:var(--success);">${fmtMoney(totalIncome)}</div>
+                </div>
+            </div>
+            <div class="detail-item" style="padding:10px;">
+                <div class="detail-item-left">
+                    <div class="detail-item-meta">Despesas do mês</div>
+                    <div class="detail-item-desc" style="color:var(--danger);">${fmtMoney(totalExpense)}</div>
+                </div>
+            </div>
+            <div class="detail-item" style="padding:10px;">
+                <div class="detail-item-left">
+                    <div class="detail-item-meta">Saldo previsto</div>
+                    <div class="detail-item-desc" style="color:${saldoPrevisto < 0 ? 'var(--danger)' : 'var(--success)'};">${fmtMoney(saldoPrevisto)}</div>
+                </div>
+            </div>
+            <div class="detail-item" style="padding:10px;">
+                <div class="detail-item-left">
+                    <div class="detail-item-meta">Saldo real acumulado</div>
+                    <div class="detail-item-desc" style="color:${saldoReal < 0 ? 'var(--danger)' : 'var(--success)'};">${fmtMoney(saldoReal)}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const items = sortedTx.map(t => {
+        const isIncome = (t.type || 'expense') === 'income';
+        const desc = [t.supplier, t.description].filter(Boolean).join(' — ') || '(Sem descrição)';
+        const dateStr = fmtDate(t.date || t.due_date);
+        const statusBadge = isPaid(t)
+            ? '<span style="font-size:.72rem;color:var(--success);margin-left:6px;">✓ Pago</span>'
+            : '<span style="font-size:.72rem;color:var(--warning);margin-left:6px;">⏳ Pendente</span>';
+        return `
+            <div class="detail-item">
+                <div class="detail-item-left">
+                    <div class="detail-item-desc">${isIncome ? '💰' : '💸'} ${escapeHtml(desc)}</div>
+                    <div class="detail-item-meta">
+                        ${dateStr}${statusBadge}
+                        ${t.category ? ` • ${escapeHtml(t.category)}` : ''}
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                    <div class="detail-item-val" style="color:${isIncome ? 'var(--success)' : 'var(--danger)'};">${fmtMoney(t.amount)}</div>
+                    <button class="budget-edit-line-btn" data-edit-tx="${escapeHtml(String(t.id))}" style="padding:3px 8px;">✏️ Editar</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    body.innerHTML = `
+        ${summaryHtml}
+        <div class="detail-list">${items}</div>
+        <div class="chart-total" style="margin-top:16px;">
+            <span>Total (${sortedTx.length} lançamento${sortedTx.length !== 1 ? 's' : ''})</span>
+            <span>${fmtMoney(totalIncome)} / ${fmtMoney(totalExpense)}</span>
+        </div>
+    `;
+
+    body.querySelectorAll('[data-edit-tx]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.editTx;
+            const tx = state.allTx.find(x => String(x.id) === String(id));
+            if (!tx) return;
+            closeDrillModal();
+            await openTxModal(tx.type || 'expense', tx);
+        });
+    });
+
+    document.getElementById('drill-modal-overlay').classList.add('open');
 }
 
 function closeDrillModal() {
