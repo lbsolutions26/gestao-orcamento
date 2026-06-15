@@ -608,6 +608,42 @@
             top: 100%;
             margin-top: 4px;
         }
+        .cashflow-tooltip {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .cashflow-tooltip.visible {
+            opacity: 1;
+        }
+        .cashflow-tooltip-date {
+            font-size: 0.65rem;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+        .cashflow-tooltip-balance {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        .cashflow-tooltip-balance.positive {
+            color: #10b981;
+        }
+        .cashflow-tooltip-balance.negative {
+            color: #ef4444;
+        }
         .cashflow-balance-line {
             position: absolute;
             top: 0;
@@ -3449,11 +3485,11 @@ function renderCashflowChart() {
         
         pointsHtml.push(`
             <div class="cashflow-point ${txType}" style="left: ${leftPercent}%; bottom: ${heightPercent}%;"
-                 data-tx-index="${index}">
+                 data-tx-index="${index}"
+                 data-date="${dateLabel}"
+                 data-balance="${accBalance}">
                 <div class="cashflow-point-line" style="top: ${100 - lineTop}%; height: ${lineHeight}%;"></div>
                 <div class="cashflow-point-marker"></div>
-                <div class="cashflow-point-value">${txType === 'income' ? '+' : '-'}${fmtMoneyShort(txAmount)}</div>
-                <div class="cashflow-point-date">${dateLabel}</div>
             </div>
         `);
     });
@@ -3463,6 +3499,10 @@ function renderCashflowChart() {
     
     cashflowChart.innerHTML = `
         <div class="cashflow-chart-container">
+            <div class="cashflow-tooltip" id="cashflow-tooltip">
+                <div class="cashflow-tooltip-date"></div>
+                <div class="cashflow-tooltip-balance"></div>
+            </div>
             <div class="cashflow-axis">
                 <div class="cashflow-axis-zero">R$ 0</div>
                 <div class="cashflow-axis-line" style="bottom: ${zeroPercent}%;"></div>
@@ -3473,8 +3513,28 @@ function renderCashflowChart() {
         </div>
     `;
     
-    // Adicionar eventos de clique
+    // Tooltip
+    const tooltip = document.getElementById('cashflow-tooltip');
+    const tooltipDate = tooltip.querySelector('.cashflow-tooltip-date');
+    const tooltipBalance = tooltip.querySelector('.cashflow-tooltip-balance');
+    
+    // Adicionar eventos de hover e clique
     cashflowChart.querySelectorAll('.cashflow-point').forEach(point => {
+        point.addEventListener('mouseenter', () => {
+            const date = point.dataset.date;
+            const balance = parseFloat(point.dataset.balance);
+            
+            tooltipDate.textContent = date;
+            tooltipBalance.textContent = `Saldo: ${fmtMoney(balance)}`;
+            tooltipBalance.className = 'cashflow-tooltip-balance ' + (balance >= 0 ? 'positive' : 'negative');
+            
+            tooltip.classList.add('visible');
+        });
+        
+        point.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+        
         point.addEventListener('click', () => {
             const index = parseInt(point.dataset.txIndex);
             openCashflowDetail(futureTransactions[index], currentBalance, futureTransactions.slice(0, index + 1));
