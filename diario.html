@@ -224,13 +224,15 @@
             display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
         }
         .summary-card {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.96);
             border-radius: 10px;
             padding: 8px 10px;
             text-align: center;
+            color: #111827;
+            border: 1px solid rgba(15, 23, 42, 0.08);
         }
         .summary-card .lbl {
-            font-size: 0.7rem; opacity: 0.85;
+            font-size: 0.7rem; opacity: 0.78;
             text-transform: uppercase; letter-spacing: 0.04em;
             margin-bottom: 2px;
         }
@@ -238,10 +240,10 @@
             font-size: 0.95rem; font-weight: 700;
             white-space: nowrap;
         }
-        .summary-card.pending { background: rgba(254, 226, 226, 0.25); }
-        .summary-card.paid { background: rgba(209, 250, 229, 0.25); }
-        .summary-card.income { background: rgba(209, 250, 229, 0.25); }
-        .summary-card.balance { background: rgba(224, 231, 255, 0.35); }
+        .summary-card.pending { background: rgba(255, 241, 242, 0.96); }
+        .summary-card.paid { background: rgba(240, 253, 244, 0.96); }
+        .summary-card.income { background: rgba(236, 253, 245, 0.96); }
+        .summary-card.balance { background: rgba(255, 251, 235, 0.96); }
         .summary-card.balance .val { font-size: 0.95rem !important; font-weight: 700; }
         .summary-card.clickable { cursor: pointer; transition: transform .12s, background .2s; }
         .summary-card.clickable:hover { transform: translateY(-1px); filter: brightness(1.1); }
@@ -979,7 +981,6 @@
                 <div class="val" id="sum-income">R$ 0</div>
             </div>
             <div class="summary-card balance clickable" id="card-balance" title="Ver detalhes do saldo do mês">
-                <div class="lbl">Saldo do mês</div>
                 <div class="val" id="sum-balance">R$ 0</div>
                 <div class="sub" id="sum-balance-accum">Real: R$ 0</div>
             </div>
@@ -2589,7 +2590,7 @@ function render() {
         ? (totalIncRealized - totalExpRealized)
         : (totalInc - totalExp);
     const elS = document.getElementById('sum-balance');
-    elS.textContent = fmtMoneyShort(saldo);
+    elS.textContent = 'Balanço mês: ' + fmtMoneyShort(saldo);
     elS.style.color = saldo < 0 ? 'var(--danger)' : 'var(--success)';
 
     // Saldo real acumulado: todas as transações PAGAS até o fim do mês selecionado
@@ -2606,9 +2607,7 @@ function render() {
     }, 0);
     const elA = document.getElementById('sum-balance-accum');
     if (elA) {
-        elA.textContent = summaryMode === 'realized'
-            ? ('Acumulado: ' + fmtMoneyShort(accum))
-            : ('Real: ' + fmtMoneyShort(accum));
+        elA.textContent = 'Saldo Banco: ' + fmtMoneyShort(accum);
         elA.style.color = accum < 0 ? 'var(--danger)' : 'var(--success)';
     }
 
