@@ -313,6 +313,38 @@
         }
         .budget-progress.warning { background: var(--warning); }
         .budget-progress.danger { background: var(--danger); }
+        .budget-summary-row {
+            cursor: pointer;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+        .budget-summary-row:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .budget-summary-hint {
+            font-size: .72rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        .budget-detail-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .budget-edit-line-btn {
+            border: 1px solid var(--primary);
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: .75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
 
         /* ===== Chart modal ===== */
         .chart-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
@@ -932,7 +964,6 @@
             <div class="budgets-title">💰 Orçamentos do Mês</div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button class="budget-toggle" id="budget-add-new" title="Adicionar orçamento de outra categoria">➕ Novo</button>
-                <button class="budget-toggle" id="budget-collapse">▼ Ocultar</button>
             </div>
         </div>
         <div class="budget-type-tabs">
@@ -1125,6 +1156,21 @@
     </div>
 </div>
 
+<!-- Modal: detalhes de orçamentos linha a linha -->
+<div id="budget-lines-modal-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width: 680px;">
+        <header class="modal-header">
+            <div class="modal-grab"></div>
+            <button id="budget-lines-modal-close" class="modal-close" aria-label="Fechar">✕</button>
+            <div class="modal-title" id="budget-lines-modal-title">Detalhes dos Orçamentos</div>
+            <div class="modal-sub" id="budget-lines-modal-sub"></div>
+        </header>
+        <div class="modal-body" style="max-height: 62vh; overflow-y: auto;">
+            <div id="budget-lines-modal-list"></div>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <!-- Barra de ações inferior -->
@@ -1261,7 +1307,6 @@ const state = {
     viewMonth: null,      // 0-11
     activeTab: 'month',
     currentGroupKey: null, // identifica a "conta" aberta no modal
-    budgetsVisible: true,  // se seção de budgets está visível
     filters: {            // filtros por aba
         month:     { type: 'all', search: '', category: 'all', supplier: 'all' },
         recurring: { type: 'all', search: '', category: 'all', supplier: 'all' },
@@ -1453,41 +1498,103 @@ function renderBudgets() {
     
     if (items.length === 0) {
         section.style.display = 'block';
-        list.style.display = state.budgetsVisible ? 'block' : 'none';
         const typeLabel = state.budgetType === 'expense' ? 'de despesas' : 'de receitas';
         list.innerHTML = `<div style="padding: 12px 0; color: var(--text-muted); font-size: 0.9rem; text-align: center;">Nenhum orçamento ${typeLabel} definido. Clique em <strong>➕ Novo</strong> para criar.</div>`;
         return;
     }
-    
-    section.style.display = 'block';
-    list.style.display = state.budgetsVisible ? 'block' : 'none';
-    
-    // Ordenar por valor realizado (maior primeiro)
+
+    // Ordenar por valor realizado (maior primeiro) e resumir
     items.sort((a, b) => b.actual - a.actual);
-    
-    list.innerHTML = items.map(item => {
-        const displayName = item.supplier 
-            ? `${escapeHtml(item.category)} <span style="opacity: 0.7; font-size: 0.85em;">— ${escapeHtml(item.supplier)}</span>`
-            : escapeHtml(item.category);
-        
-        const onclickAttr = item.supplier
-            ? `openBudgetModal('${escapeAttr(item.category)}', '${escapeAttr(item.supplier)}')`
-            : `openBudgetModal('${escapeAttr(item.category)}')`;
-        
-        return `
-        <div class="budget-item">
+    const totalBudget = items.reduce((s, i) => s + Number(i.budgetAmount || 0), 0);
+    const totalActual = items.reduce((s, i) => s + Number(i.actual || 0), 0);
+    const totalPctRaw = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+    const totalPct = Math.min(totalPctRaw, 100);
+    let totalProgressClass = '';
+    if (state.budgetType === 'expense') {
+        if (totalPctRaw >= 100) totalProgressClass = 'danger';
+        else if (totalPctRaw >= 80) totalProgressClass = 'warning';
+    } else {
+        if (totalPctRaw >= 100) totalProgressClass = '';
+        else if (totalPctRaw >= 80) totalProgressClass = 'warning';
+        else totalProgressClass = 'danger';
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = `
+        <div class="budget-summary-row" id="budget-summary-row">
             <div class="budget-top">
-                <div class="budget-name" onclick="${onclickAttr}">${displayName}</div>
-                <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
-                    ${fmtMoney(item.actual)} / ${fmtMoney(item.budgetAmount)}
+                <div class="budget-name">${state.budgetType === 'expense' ? 'Total de Despesas Orçadas' : 'Total de Receitas Previstas'}</div>
+                <div class="budget-amounts" style="color: ${state.budgetType === 'expense' && totalActual > totalBudget ? 'var(--danger)' : 'var(--text-muted)'}">
+                    ${fmtMoney(totalActual)} / ${fmtMoney(totalBudget)}
                 </div>
             </div>
             <div class="budget-bar">
-                <div class="budget-progress ${item.progressClass}" style="width: ${item.percentage}%"></div>
+                <div class="budget-progress ${totalProgressClass}" style="width: ${totalPct}%"></div>
             </div>
+            <div class="budget-summary-hint">Toque para ver o detalhamento por categoria/fornecedor</div>
         </div>
     `;
+
+    const summaryRow = document.getElementById('budget-summary-row');
+    if (summaryRow) {
+        summaryRow.addEventListener('click', () => openBudgetLinesModal(items, totalActual, totalBudget));
+    }
+}
+
+function openBudgetLinesModal(items, totalActual, totalBudget) {
+    const overlay = document.getElementById('budget-lines-modal-overlay');
+    const title = document.getElementById('budget-lines-modal-title');
+    const sub = document.getElementById('budget-lines-modal-sub');
+    const list = document.getElementById('budget-lines-modal-list');
+    if (!overlay || !list) return;
+
+    const typeLabel = state.budgetType === 'expense' ? 'Despesas' : 'Receitas';
+    title.textContent = `Detalhes dos Orçamentos · ${typeLabel}`;
+    sub.textContent = `${monthName(state.viewYear, state.viewMonth)} · Total ${fmtMoney(totalActual)} / ${fmtMoney(totalBudget)}`;
+
+    list.innerHTML = items.map(item => {
+        const displayName = item.supplier
+            ? `${escapeHtml(item.category)} <span style="opacity: 0.7; font-size: 0.85em;">— ${escapeHtml(item.supplier)}</span>`
+            : escapeHtml(item.category);
+        const dataCategory = escapeAttr(item.category);
+        const dataSupplier = escapeAttr(item.supplier || '');
+        return `
+            <div class="budget-item">
+                <div class="budget-top">
+                    <div class="budget-name">${displayName}</div>
+                    <div class="budget-detail-actions">
+                        <div class="budget-amounts" style="color: ${item.remaining < 0 ? 'var(--danger)' : 'var(--text-muted)'}">
+                            ${fmtMoney(item.actual)} / ${fmtMoney(item.budgetAmount)}
+                        </div>
+                        <button class="budget-edit-line-btn" data-category="${dataCategory}" data-supplier="${dataSupplier}">✏️ Editar</button>
+                    </div>
+                </div>
+                <div class="budget-bar">
+                    <div class="budget-progress ${item.progressClass}" style="width: ${item.percentage}%"></div>
+                </div>
+            </div>
+        `;
     }).join('');
+
+    list.querySelectorAll('.budget-edit-line-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const category = btn.dataset.category;
+            const supplier = btn.dataset.supplier || null;
+            closeBudgetLinesModal();
+            openBudgetModal(category, supplier || null);
+        });
+    });
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBudgetLinesModal() {
+    const overlay = document.getElementById('budget-lines-modal-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 let currentBudgetCategory = null;
@@ -1520,7 +1627,7 @@ async function openBudgetModal(category, supplier = null) {
     
     const titleText = supplier ? `💰 ${category} - ${supplier}` : `💰 ${category}`;
     document.getElementById('budget-modal-title').textContent = titleText;
-    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
+    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewYear, state.viewMonth)}`;
     document.getElementById('budget-amount-input').value = budgetAmount || '';
     document.getElementById('budget-delete-btn').style.display = budget ? '' : 'none';
     
@@ -1563,7 +1670,7 @@ async function openNewBudgetModal() {
     
     const typeLabel = state.budgetType === 'expense' ? 'Despesa' : 'Receita';
     document.getElementById('budget-modal-title').textContent = `💰 Nova Meta de ${typeLabel}`;
-    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewMonth)} ${state.viewYear}`;
+    document.getElementById('budget-modal-sub').textContent = `${monthName(state.viewYear, state.viewMonth)}`;
     document.getElementById('budget-amount-input').value = '';
     document.getElementById('budget-delete-btn').style.display = 'none';
     
@@ -1730,17 +1837,13 @@ function setupEvents() {
         });
     });
     
-    document.getElementById('budget-collapse').addEventListener('click', () => {
-        state.budgetsVisible = !state.budgetsVisible;
-        const list = document.getElementById('budgets-list');
-        const btn = document.getElementById('budget-collapse');
-        list.style.display = state.budgetsVisible ? 'block' : 'none';
-        btn.textContent = state.budgetsVisible ? '▼ Ocultar' : '▶ Mostrar';
-    });
-    
     document.getElementById('budget-modal-close').addEventListener('click', closeBudgetModal);
     document.getElementById('budget-modal-overlay').addEventListener('click', e => {
         if (e.target.id === 'budget-modal-overlay') closeBudgetModal();
+    });
+    document.getElementById('budget-lines-modal-close').addEventListener('click', closeBudgetLinesModal);
+    document.getElementById('budget-lines-modal-overlay').addEventListener('click', e => {
+        if (e.target.id === 'budget-lines-modal-overlay') closeBudgetLinesModal();
     });
     document.getElementById('budget-save-btn').addEventListener('click', saveBudget);
     document.getElementById('budget-delete-btn').addEventListener('click', deleteBudget);
