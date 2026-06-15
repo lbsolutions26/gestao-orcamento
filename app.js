@@ -2434,7 +2434,7 @@ function renderInfoCards(data) {
     if (elDespesas) elDespesas.textContent = fmt(totalDespesas);
     if (elSaldo) {
         elSaldo.textContent = fmt(saldo);
-        elSaldo.style.color = saldo >= 0 ? '#10b981' : '#ef4444';
+        elSaldo.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
     }
     if (elReceitasCount) elReceitasCount.textContent = `${receitas.length} ${receitas.length === 1 ? 'lançamento' : 'lançamentos'}`;
     if (elDespesasCount) elDespesasCount.textContent = `${despesas.length} ${despesas.length === 1 ? 'lançamento' : 'lançamentos'}`;
